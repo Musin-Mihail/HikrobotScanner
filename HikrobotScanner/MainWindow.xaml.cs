@@ -31,76 +31,47 @@ public partial class MainWindow : Window
         UpdateCounterDisplay();
     }
 
-    private void StartButton_Click(object sender, RoutedEventArgs e)
+    private void StartServerButton_Click(object sender, RoutedEventArgs e)
     {
         StartListeningServer();
-        StartButton.IsEnabled = false;
-        StopButton.IsEnabled = true;
+        StartServerButton.IsEnabled = false;
+        StopServerButton.IsEnabled = true;
     }
 
-    private void StopButton_Click(object sender, RoutedEventArgs e)
+    private void StopServerButton_Click(object sender, RoutedEventArgs e)
     {
         _cancellationTokenSource?.Cancel();
         _tcpServer?.Stop();
         SaveReceivedCodesToFile();
-        StartButton.IsEnabled = true;
-        StopButton.IsEnabled = false;
+        StartServerButton.IsEnabled = true;
+        StopServerButton.IsEnabled = false;
         StatusTextBlock.Text = "Сервер остановлен.";
     }
 
     /// <summary>
-    /// Обработчик нажатия кнопки для отправки триггера.
+    /// Обработчик нажатия кнопки для запуска конвейера и активации LineOut3.
     /// </summary>
-    private async void SendTriggerButton_Click(object sender, RoutedEventArgs e)
+    private async void StartPipelineButton_Click(object sender, RoutedEventArgs e)
     {
-        var cameraIp = CameraIpTextBox.Text;
-        if (!int.TryParse(TriggerPortTextBox.Text, out int triggerPort))
-        {
-            Log("Ошибка: Неверный формат порта триггера.");
-            return;
-        }
-
-        const string triggerCommand = "start";
-        Log($"Отправка триггера '{triggerCommand}' на {cameraIp}:{triggerPort}...");
-        try
-        {
-            using (var client = new TcpClient())
-            {
-                var connectTask = client.ConnectAsync(cameraIp, triggerPort);
-                if (await Task.WhenAny(connectTask, Task.Delay(3000)) == connectTask)
-                {
-                    var data = Encoding.UTF8.GetBytes(triggerCommand);
-                    var stream = client.GetStream();
-                    await stream.WriteAsync(data, 0, data.Length);
-                    Log("Триггер успешно отправлен.");
-                }
-                else
-                {
-                    Log("Ошибка: Не удалось подключиться к камере (таймаут).");
-                }
-            }
-        }
-        catch (Exception ex)
-        {
-            Log($"Ошибка при отправке триггера: {ex.Message}");
-        }
+        await SendCommandToCameraAsync("start");
     }
 
     /// <summary>
-    /// Обработчик нажатия кнопки для остановки конвейера.
+    /// Обработчик нажатия кнопки для остановки конвейера и активации LineOut4.
     /// </summary>
     private async void StopPipelineButton_Click(object sender, RoutedEventArgs e)
     {
-        await SendStopCommandAsync();
+        await SendCommandToCameraAsync("stop");
     }
 
     /// <summary>
-    /// Отправляет команду "stop" на IP-адрес и порт камеры.
+    /// Отправляет текстовую команду на IP-адрес и порт камеры.
     /// </summary>
-    private async Task SendStopCommandAsync()
+    /// <param name="command">Текстовая команда для отправки (например, "start" или "stop").</param>
+    private async Task SendCommandToCameraAsync(string command)
     {
-        var cameraIp = "";
-        var triggerPort = 0;
+        string cameraIp = "";
+        int triggerPort = 0;
 
         await Dispatcher.InvokeAsync(() =>
         {
@@ -110,12 +81,11 @@ public partial class MainWindow : Window
 
         if (triggerPort == 0)
         {
-            Log("Ошибка: Неверный формат порта триггера.");
+            Log("Ошибка: Неверный формат порта для команд.");
             return;
         }
 
-        var triggerCommand = "stop";
-        Log($"Отправка команды '{triggerCommand}' на {cameraIp}:{triggerPort}...");
+        Log($"Отправка команды '{command}' на {cameraIp}:{triggerPort}...");
         try
         {
             using (var client = new TcpClient())
@@ -123,10 +93,11 @@ public partial class MainWindow : Window
                 var connectTask = client.ConnectAsync(cameraIp, triggerPort);
                 if (await Task.WhenAny(connectTask, Task.Delay(3000)) == connectTask)
                 {
-                    var data = Encoding.UTF8.GetBytes(triggerCommand);
+                    await connectTask;
+                    var data = Encoding.UTF8.GetBytes(command);
                     var stream = client.GetStream();
                     await stream.WriteAsync(data, 0, data.Length);
-                    Log("Команда остановки успешно отправлена.");
+                    Log($"Команда '{command}' успешно отправлена.");
                 }
                 else
                 {
@@ -136,7 +107,7 @@ public partial class MainWindow : Window
         }
         catch (Exception ex)
         {
-            Log($"Ошибка при отправке команды остановки: {ex.Message}");
+            Log($"Ошибка при отправке команды '{command}': {ex.Message}");
         }
     }
 
@@ -178,20 +149,17 @@ public partial class MainWindow : Window
         {
             // Это ожидаемое исключение при отмене токена, логировать не нужно.
         }
-        catch (SocketException ex)
+        catch (SocketException ex) when (ex.SocketErrorCode == SocketError.Interrupted)
         {
-            if (ex.SocketErrorCode != SocketError.Interrupted)
-            {
-                Log($"Ошибка сокета сервера: {ex.Message}");
-            }
+            // Это ожидаемое исключение при остановке сервера методом Stop().
         }
         catch (Exception ex)
         {
-            Log($"Ошибка сервера: {ex.Message}");
+            Log($"Критическая ошибка сервера: {ex.Message}");
         }
         finally
         {
-            _tcpServer.Stop();
+            _tcpServer?.Stop();
             Log("Сервер остановлен.");
         }
     }
@@ -207,7 +175,7 @@ public partial class MainWindow : Window
             {
                 var buffer = new byte[1024];
                 int bytesRead;
-                while ((bytesRead = await stream.ReadAsync(buffer, 0, buffer.Length, token)) != 0)
+                while (!token.IsCancellationRequested && (bytesRead = await stream.ReadAsync(buffer, 0, buffer.Length, token)) != 0)
                 {
                     var receivedData = Encoding.UTF8.GetString(buffer, 0, bytesRead);
                     var modifiedString = receivedData[2..];
@@ -237,7 +205,7 @@ public partial class MainWindow : Window
                     else
                     {
                         Log($"Код не соответствует правилам (ожидалось 7 блоков, получено {parts.Length}). Код не сохранен.");
-                        await SendStopCommandAsync();
+                        await SendCommandToCameraAsync("stop");
                         Dispatcher.Invoke(() =>
                         {
                             MessageBox.Show(this,
@@ -252,11 +220,10 @@ public partial class MainWindow : Window
         }
         catch (OperationCanceledException)
         {
-            // Это ожидаемое исключение при отмене, логировать не нужно.
+            /* Игнорируем */
         }
         catch (IOException ex) when (ex.InnerException is SocketException)
         {
-            // Это может произойти при резком закрытии соединения, не является критической ошибкой.
             Log("Соединение было принудительно разорвано.");
         }
         catch (Exception ex)
@@ -270,106 +237,6 @@ public partial class MainWindow : Window
         }
     }
 
-    private void SaveReceivedCodesToFile()
-    {
-        if (_receivedCodes.Count == 0)
-        {
-            Log("Нет полученных кодов для сохранения.");
-            return;
-        }
-
-        try
-        {
-            var directory = AppDomain.CurrentDomain.BaseDirectory;
-            var fileName = $"ReceivedCodes_{DateTime.Now:yyyyMMdd_HHmmss}.txt";
-            var filePath = Path.Combine(directory, fileName);
-
-            File.WriteAllLines(filePath, _receivedCodes);
-            Log($"Сохранено {_receivedCodes.Count} кодов в файл: {filePath}");
-            _receivedCodes.Clear();
-        }
-        catch (Exception ex)
-        {
-            Log($"Ошибка сохранения файла: {ex.Message}");
-        }
-    }
-
-    /// <summary>
-    /// Логирует сообщение в текстовое поле и в консоль.
-    /// </summary>
-    private void Log(string message)
-    {
-        if (!Dispatcher.CheckAccess())
-        {
-            Dispatcher.Invoke(() => Log(message));
-            return;
-        }
-
-        var timestamp = DateTime.Now.ToString("HH:mm:ss");
-        LogTextBox.AppendText($"[{timestamp}] {message}{Environment.NewLine}");
-        LogTextBox.ScrollToEnd();
-    }
-
-    /// <summary>
-    /// Корректно останавливает сервер и сохраняет данные при закрытии окна.
-    /// </summary>
-    private void Window_Closing(object sender, CancelEventArgs e)
-    {
-        _cancellationTokenSource?.Cancel();
-        _tcpServer?.Stop();
-        SaveBarcodeCounter();
-        SaveReceivedCodesToFile();
-        Log("Приложение закрывается...");
-    }
-
-    /// <summary>
-    /// Загружает последнее значение счетчика из файла.
-    /// </summary>
-    private void LoadBarcodeCounter()
-    {
-        try
-        {
-            if (!File.Exists(CounterFileName)) return;
-            var content = File.ReadAllText(CounterFileName);
-            if (!long.TryParse(content, out var savedCounter)) return;
-            _barcodeCounter = savedCounter;
-            Log($"Счетчик загружен: {_barcodeCounter}");
-        }
-        catch (Exception ex)
-        {
-            Log($"Ошибка загрузки счетчика: {ex.Message}");
-        }
-    }
-
-    /// <summary>
-    /// Сохраняет текущее значение счетчика в файл.
-    /// </summary>
-    private void SaveBarcodeCounter()
-    {
-        try
-        {
-            File.WriteAllText(CounterFileName, _barcodeCounter.ToString());
-        }
-        catch (Exception ex)
-        {
-            Log($"Ошибка сохранения счетчика: {ex.Message}");
-        }
-    }
-
-    /// <summary>
-    /// Обновляет текстовый блок, отображающий текущий счетчик.
-    /// </summary>
-    private void UpdateCounterDisplay()
-    {
-        if (CounterTextBlock != null)
-        {
-            CounterTextBlock.Text = _barcodeCounter.ToString("D7");
-        }
-    }
-
-    /// <summary>
-    /// Обработчик нажатия кнопки для генерации и печати кодов.
-    /// </summary>
     private void GenerateButton_Click(object sender, RoutedEventArgs e)
     {
         if (!int.TryParse(QuantityTextBox.Text, out var quantity) || quantity <= 0)
@@ -395,9 +262,6 @@ public partial class MainWindow : Window
         PrintBarcodes(barcodesToPrint);
     }
 
-    /// <summary>
-    /// Отправляет сгенерированные штрих-коды на печать.
-    /// </summary>
     private void PrintBarcodes(List<string> barcodes)
     {
         var printDialog = new PrintDialog();
@@ -411,46 +275,24 @@ public partial class MainWindow : Window
         {
             PageWidth = 2.5 * 96,
             PageHeight = 1.5 * 96,
-            PagePadding = new Thickness(5)
+            PagePadding = new Thickness(5),
+            ColumnWidth = 2.5 * 96
         };
-        doc.ColumnWidth = doc.PageWidth;
 
         var barcodeWriter = new BarcodeWriterPixelData
         {
             Format = BarcodeFormat.CODE_128,
-            Options = new EncodingOptions
-            {
-                Height = 80,
-                Width = 300,
-                Margin = 10
-            }
+            Options = new EncodingOptions { Height = 80, Width = 300, Margin = 10 }
         };
 
         foreach (var barcodeValue in barcodes)
         {
-            var panel = new StackPanel
-            {
-                Orientation = Orientation.Vertical,
-                Margin = new Thickness(0, 20, 0, 5)
-            };
+            var panel = new StackPanel { Orientation = Orientation.Vertical, Margin = new Thickness(0, 20, 0, 5) };
             var pixelData = barcodeWriter.Write(barcodeValue);
             var wpfBitmap = PixelDataToWriteableBitmap(pixelData);
 
-            var barcodeImage = new Image
-            {
-                HorizontalAlignment = HorizontalAlignment.Center,
-                Source = wpfBitmap,
-                Stretch = Stretch.None
-            };
-            var barcodeText = new TextBlock
-            {
-                Text = barcodeValue,
-                HorizontalAlignment = HorizontalAlignment.Center,
-                FontSize = 12
-            };
-            panel.Children.Add(barcodeImage);
-            panel.Children.Add(barcodeText);
-
+            panel.Children.Add(new Image { HorizontalAlignment = HorizontalAlignment.Center, Source = wpfBitmap, Stretch = Stretch.None });
+            panel.Children.Add(new TextBlock { Text = barcodeValue, HorizontalAlignment = HorizontalAlignment.Center, FontSize = 12 });
             doc.Blocks.Add(new BlockUIContainer(panel));
         }
 
@@ -459,23 +301,93 @@ public partial class MainWindow : Window
         Log("Документ отправлен на принтер.");
     }
 
-    /// <summary>
-    /// Конвертирует PixelData из ZXing.Net в WriteableBitmap для WPF.
-    /// </summary>
     private WriteableBitmap PixelDataToWriteableBitmap(PixelData pixelData)
     {
-        var wpfBitmap = new WriteableBitmap(
-            pixelData.Width,
-            pixelData.Height,
-            96,
-            96,
-            PixelFormats.Bgr32,
-            null);
-        wpfBitmap.WritePixels(
-            new Int32Rect(0, 0, pixelData.Width, pixelData.Height),
-            pixelData.Pixels,
-            pixelData.Width * 4,
-            0);
+        var wpfBitmap = new WriteableBitmap(pixelData.Width, pixelData.Height, 96, 96, PixelFormats.Bgr32, null);
+        wpfBitmap.WritePixels(new Int32Rect(0, 0, pixelData.Width, pixelData.Height), pixelData.Pixels, pixelData.Width * 4, 0);
         return wpfBitmap;
+    }
+
+    private void Log(string message)
+    {
+        if (!Dispatcher.CheckAccess())
+        {
+            Dispatcher.Invoke(() => Log(message));
+            return;
+        }
+
+        LogTextBox.AppendText($"[{DateTime.Now:HH:mm:ss}] {message}{Environment.NewLine}");
+        LogTextBox.ScrollToEnd();
+    }
+
+    private void Window_Closing(object sender, CancelEventArgs e)
+    {
+        _cancellationTokenSource?.Cancel();
+        _tcpServer?.Stop();
+        SaveBarcodeCounter();
+        SaveReceivedCodesToFile();
+        Log("Приложение закрывается...");
+    }
+
+    private void LoadBarcodeCounter()
+    {
+        try
+        {
+            if (!File.Exists(CounterFileName)) return;
+            var content = File.ReadAllText(CounterFileName);
+            if (long.TryParse(content, out var savedCounter))
+            {
+                _barcodeCounter = savedCounter;
+                Log($"Счетчик загружен: {_barcodeCounter}");
+            }
+        }
+        catch (Exception ex)
+        {
+            Log($"Ошибка загрузки счетчика: {ex.Message}");
+        }
+    }
+
+    private void SaveBarcodeCounter()
+    {
+        try
+        {
+            File.WriteAllText(CounterFileName, _barcodeCounter.ToString());
+        }
+        catch (Exception ex)
+        {
+            Log($"Ошибка сохранения счетчика: {ex.Message}");
+        }
+    }
+
+    private void UpdateCounterDisplay()
+    {
+        if (CounterTextBlock != null)
+        {
+            CounterTextBlock.Text = _barcodeCounter.ToString("D7");
+        }
+    }
+
+    private void SaveReceivedCodesToFile()
+    {
+        if (_receivedCodes.Count == 0)
+        {
+            Log("Нет полученных кодов для сохранения.");
+            return;
+        }
+
+        try
+        {
+            var directory = AppDomain.CurrentDomain.BaseDirectory;
+            var fileName = $"ReceivedCodes_{DateTime.Now:yyyyMMdd_HHmmss}.txt";
+            var filePath = Path.Combine(directory, fileName);
+
+            File.WriteAllLines(filePath, _receivedCodes);
+            Log($"Сохранено {_receivedCodes.Count} кодов в файл: {filePath}");
+            _receivedCodes.Clear();
+        }
+        catch (Exception ex)
+        {
+            Log($"Ошибка сохранения файла: {ex.Message}");
+        }
     }
 }

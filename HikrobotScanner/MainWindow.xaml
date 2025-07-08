@@ -4,12 +4,11 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         mc:Ignorable="d"
-        Title="Hikrobot ID5000 Controller" Height="600" Width="600"
+        Title="Hikrobot ID5000 Controller" Height="650" Width="700"
         WindowStartupLocation="CenterScreen"
         Closing="Window_Closing">
     <Grid Margin="15">
         <Grid.RowDefinitions>
-            <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
@@ -26,7 +25,6 @@
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto" />
                     <RowDefinition Height="Auto" />
-                    <RowDefinition Height="Auto" />
                 </Grid.RowDefinitions>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="Auto" />
@@ -38,7 +36,7 @@
                 <Label Content="IP камеры:" Grid.Row="0" Grid.Column="0" VerticalAlignment="Center" />
                 <TextBox x:Name="CameraIpTextBox" Text="192.168.1.20" Grid.Row="0" Grid.Column="1" Margin="5" VerticalAlignment="Center" />
 
-                <Label Content="Порт триггера:" Grid.Row="0" Grid.Column="2" VerticalAlignment="Center" />
+                <Label Content="Порт команд (триггер):" Grid.Row="0" Grid.Column="2" VerticalAlignment="Center" />
                 <TextBox x:Name="TriggerPortTextBox" Text="2001" Grid.Row="0" Grid.Column="3" Margin="5" VerticalAlignment="Center" />
 
                 <Label Content="Локальный порт (прием):" Grid.Row="1" Grid.Column="2" VerticalAlignment="Center" />
@@ -46,36 +44,35 @@
             </Grid>
         </GroupBox>
 
-        <GroupBox Header="Настройка товара" Grid.Row="1" Grid.Column="0" Padding="10">
-            <StackPanel />
-        </GroupBox>
-
-        <GroupBox Header="Управление и Результат" Grid.Row="1" Grid.Column="1" Padding="10">
+        <GroupBox Header="Управление и Результат" Grid.Row="1" Grid.Column="0" Padding="10">
             <StackPanel>
-                <Button x:Name="SendTriggerButton" Content="Запуск конвейера" Click="SendTriggerButton_Click" Margin="5" Padding="10,5" />
-                <Button x:Name="StopPipelineButton" Content="Остановить конвейер" Click="StopPipelineButton_Click" Margin="5" Padding="10,5" />
-                <Button x:Name="StartButton" Content="Старт сервера" Click="StartButton_Click" Margin="5" Padding="10,5" />
-                <Button x:Name="StopButton" Content="Стоп сервера" Click="StopButton_Click" Margin="5" Padding="10,5" IsEnabled="False" />
-                <Label Content="Последний QR-код:" FontWeight="Bold" Margin="5,10,5,0" />
-                <TextBox x:Name="LastResultTextBox" IsReadOnly="True" MinHeight="50" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" Background="#f0f0f0" Margin="5" />
+                <Button x:Name="StartPipelineButton" Content="Запуск (LineOut3)" Click="StartPipelineButton_Click" Margin="5" Padding="10,5" ToolTip="Отправляет команду 'start' для запуска съемки и активации LineOut3." />
+                <Button x:Name="StopPipelineButton" Content="Стоп (LineOut4)" Click="StopPipelineButton_Click" Margin="5" Padding="10,5" ToolTip="Отправляет команду 'stop' для остановки съемки и активации LineOut4." />
+                <Separator Margin="5,10" />
+                <Button x:Name="StartServerButton" Content="Старт сервера" Click="StartServerButton_Click" Margin="5" Padding="10,5" />
+                <Button x:Name="StopServerButton" Content="Стоп сервера" Click="StopServerButton_Click" Margin="5" Padding="10,5" IsEnabled="False" />
             </StackPanel>
         </GroupBox>
 
-        <GroupBox Header="Генерация кодов" Grid.Row="2" Grid.Column="0" Padding="10">
+        <GroupBox Header="Последний QR-код" Grid.Row="2" Grid.Column="0" Padding="10">
+            <TextBox x:Name="LastResultTextBox" IsReadOnly="True" MinHeight="80" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" Background="#f0f0f0" />
+        </GroupBox>
+
+        <GroupBox Header="Генерация кодов" Grid.Row="1" Grid.Column="1" Grid.RowSpan="2" Padding="10">
             <StackPanel>
                 <Label Content="Следующий номер кода:" />
-                <TextBlock x:Name="CounterTextBlock" Text="0000001" FontWeight="Bold" Margin="5,0,5,10" />
+                <TextBlock x:Name="CounterTextBlock" Text="0000001" FontWeight="Bold" Margin="5,0,5,10" FontSize="14" />
                 <Label Content="Количество для генерации:" />
                 <TextBox x:Name="QuantityTextBox" Text="10" Margin="5,0,5,5" />
                 <Button x:Name="GenerateButton" Content="Сгенерировать и напечатать" Click="GenerateButton_Click" Margin="5" Padding="10,5" />
             </StackPanel>
         </GroupBox>
 
-        <GroupBox Header="Лог событий" Grid.Row="2" Grid.Column="1" Grid.RowSpan="3" Padding="10">
+        <GroupBox Header="Лог событий" Grid.Row="3" Grid.Column="0" Grid.ColumnSpan="2" Padding="10">
             <TextBox x:Name="LogTextBox" IsReadOnly="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" Background="#f0f0f0" />
         </GroupBox>
 
-        <StatusBar Grid.Row="5" Grid.Column="0" Grid.ColumnSpan="2">
+        <StatusBar Grid.Row="4" Grid.Column="0" Grid.ColumnSpan="2">
             <StatusBarItem>
                 <TextBlock x:Name="StatusTextBlock" Text="Сервер не запущен." />
             </StatusBarItem>
