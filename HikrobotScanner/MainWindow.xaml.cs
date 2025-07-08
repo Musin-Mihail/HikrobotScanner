@@ -22,7 +22,7 @@ public partial class MainWindow : Window
     private long _barcodeCounter = 1;
     private const string CounterFileName = "barcode_counter.txt";
     private readonly List<string> _receivedCodes = [];
-    private readonly Random _random = new(); // Добавляем экземпляр Random для генерации случайных чисел
+    private readonly Random _random = new();
 
     public MainWindow()
     {
@@ -91,8 +91,24 @@ public partial class MainWindow : Window
     /// </summary>
     private async void StopPipelineButton_Click(object sender, RoutedEventArgs e)
     {
-        var cameraIp = CameraIpTextBox.Text;
-        if (!int.TryParse(TriggerPortTextBox.Text, out int triggerPort))
+        await SendStopCommandAsync();
+    }
+
+    /// <summary>
+    /// Отправляет команду "stop" на IP-адрес и порт камеры.
+    /// </summary>
+    private async Task SendStopCommandAsync()
+    {
+        var cameraIp = "";
+        var triggerPort = 0;
+
+        await Dispatcher.InvokeAsync(() =>
+        {
+            cameraIp = CameraIpTextBox.Text;
+            int.TryParse(TriggerPortTextBox.Text, out triggerPort);
+        });
+
+        if (triggerPort == 0)
         {
             Log("Ошибка: Неверный формат порта триггера.");
             return;
@@ -221,10 +237,11 @@ public partial class MainWindow : Window
                     else
                     {
                         Log($"Код не соответствует правилам (ожидалось 7 блоков, получено {parts.Length}). Код не сохранен.");
+                        await SendStopCommandAsync();
                         Dispatcher.Invoke(() =>
                         {
                             MessageBox.Show(this,
-                                "Уберите товар с конвейера и запустите триггер для продолжения работы.",
+                                "Конвейер остановлен. Уберите товар с конвейера и запустите триггер для продолжения работы.",
                                 "Ошибка сканирования",
                                 MessageBoxButton.OK,
                                 MessageBoxImage.Warning);
