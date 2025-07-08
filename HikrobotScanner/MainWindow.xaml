@@ -1,0 +1,72 @@
+﻿<Window x:Class="HikrobotScanner.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d"
+        Title="Hikrobot ID5000 Controller" Height="450" Width="600"
+        WindowStartupLocation="CenterScreen"
+        Closing="Window_Closing">
+    <Grid Margin="15">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="*" />
+            <ColumnDefinition Width="*" />
+        </Grid.ColumnDefinitions>
+
+        <!-- Секция настроек -->
+        <GroupBox Header="Настройки подключения" Grid.Row="0" Grid.Column="0" Grid.ColumnSpan="2" Padding="10">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                </Grid.RowDefinitions>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+
+                <Label Content="IP камеры:" Grid.Row="0" Grid.Column="0" VerticalAlignment="Center" />
+                <TextBox x:Name="CameraIpTextBox" Text="192.168.1.100" Grid.Row="0" Grid.Column="1" Margin="5" VerticalAlignment="Center" />
+
+                <Label Content="Порт триггера:" Grid.Row="0" Grid.Column="2" VerticalAlignment="Center" />
+                <TextBox x:Name="TriggerPortTextBox" Text="2001" Grid.Row="0" Grid.Column="3" Margin="5" VerticalAlignment="Center" />
+
+                <Label Content="Текст триггера:" Grid.Row="1" Grid.Column="0" VerticalAlignment="Center" />
+                <TextBox x:Name="TriggerCommandTextBox" Text="start" Grid.Row="1" Grid.Column="1" Margin="5" VerticalAlignment="Center" />
+
+                <Label Content="Локальный порт (прием):" Grid.Row="1" Grid.Column="2" VerticalAlignment="Center" />
+                <TextBox x:Name="ListenPortTextBox" Text="5000" Grid.Row="1" Grid.Column="3" Margin="5" VerticalAlignment="Center" />
+            </Grid>
+        </GroupBox>
+
+        <!-- Секция управления и результатов -->
+        <GroupBox Header="Управление и Результат" Grid.Row="1" Grid.Column="0" Padding="10">
+            <StackPanel>
+                <Button x:Name="SendTriggerButton" Content="Отправить триггер" Click="SendTriggerButton_Click" Margin="5" Padding="10,5" />
+                <Label Content="Последний QR-код:" FontWeight="Bold" Margin="5,10,5,0" />
+                <TextBox x:Name="LastResultTextBox" IsReadOnly="True" MinHeight="50" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" Background="#f0f0f0" Margin="5" />
+            </StackPanel>
+        </GroupBox>
+
+        <!-- Секция логов -->
+        <GroupBox Header="Лог событий" Grid.Row="1" Grid.Column="1" Grid.RowSpan="2" Padding="10">
+            <TextBox x:Name="LogTextBox" IsReadOnly="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" Background="#f0f0f0" />
+        </GroupBox>
+
+        <!-- Статус бар -->
+        <StatusBar Grid.Row="3" Grid.Column="0" Grid.ColumnSpan="2">
+            <StatusBarItem>
+                <TextBlock x:Name="StatusTextBlock" Text="Сервер не запущен." />
+            </StatusBarItem>
+        </StatusBar>
+    </Grid>
+</Window>
