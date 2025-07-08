@@ -60,7 +60,7 @@ public partial class MainWindow : Window
             return;
         }
 
-        var triggerCommand = TriggerCommandTextBox.Text;
+        const string triggerCommand = "start";
         Log($"Отправка триггера '{triggerCommand}' на {cameraIp}:{triggerPort}...");
         try
         {
@@ -83,6 +83,44 @@ public partial class MainWindow : Window
         catch (Exception ex)
         {
             Log($"Ошибка при отправке триггера: {ex.Message}");
+        }
+    }
+
+    /// <summary>
+    /// Обработчик нажатия кнопки для остановки конвейера.
+    /// </summary>
+    private async void StopPipelineButton_Click(object sender, RoutedEventArgs e)
+    {
+        var cameraIp = CameraIpTextBox.Text;
+        if (!int.TryParse(TriggerPortTextBox.Text, out int triggerPort))
+        {
+            Log("Ошибка: Неверный формат порта триггера.");
+            return;
+        }
+
+        var triggerCommand = "stop";
+        Log($"Отправка команды '{triggerCommand}' на {cameraIp}:{triggerPort}...");
+        try
+        {
+            using (var client = new TcpClient())
+            {
+                var connectTask = client.ConnectAsync(cameraIp, triggerPort);
+                if (await Task.WhenAny(connectTask, Task.Delay(3000)) == connectTask)
+                {
+                    var data = Encoding.UTF8.GetBytes(triggerCommand);
+                    var stream = client.GetStream();
+                    await stream.WriteAsync(data, 0, data.Length);
+                    Log("Команда остановки успешно отправлена.");
+                }
+                else
+                {
+                    Log("Ошибка: Не удалось подключиться к камере (таймаут).");
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Log($"Ошибка при отправке команды остановки: {ex.Message}");
         }
     }
 

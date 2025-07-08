@@ -41,9 +41,6 @@
                 <Label Content="Порт триггера:" Grid.Row="0" Grid.Column="2" VerticalAlignment="Center" />
                 <TextBox x:Name="TriggerPortTextBox" Text="2001" Grid.Row="0" Grid.Column="3" Margin="5" VerticalAlignment="Center" />
 
-                <Label Content="Текст триггера:" Grid.Row="1" Grid.Column="0" VerticalAlignment="Center" />
-                <TextBox x:Name="TriggerCommandTextBox" Text="start" Grid.Row="1" Grid.Column="1" Margin="5" VerticalAlignment="Center" />
-
                 <Label Content="Локальный порт (прием):" Grid.Row="1" Grid.Column="2" VerticalAlignment="Center" />
                 <TextBox x:Name="ListenPortTextBox" Text="5000" Grid.Row="1" Grid.Column="3" Margin="5" VerticalAlignment="Center" />
             </Grid>
@@ -55,9 +52,10 @@
 
         <GroupBox Header="Управление и Результат" Grid.Row="1" Grid.Column="1" Padding="10">
             <StackPanel>
-                <Button x:Name="SendTriggerButton" Content="Отправить триггер" Click="SendTriggerButton_Click" Margin="5" Padding="10,5" />
-                <Button x:Name="StartButton" Content="Старт" Click="StartButton_Click" Margin="5" Padding="10,5" />
-                <Button x:Name="StopButton" Content="Стоп" Click="StopButton_Click" Margin="5" Padding="10,5" IsEnabled="False" />
+                <Button x:Name="SendTriggerButton" Content="Запуск конвейера" Click="SendTriggerButton_Click" Margin="5" Padding="10,5" />
+                <Button x:Name="StopPipelineButton" Content="Остановить конвейер" Click="StopPipelineButton_Click" Margin="5" Padding="10,5" />
+                <Button x:Name="StartButton" Content="Старт сервера" Click="StartButton_Click" Margin="5" Padding="10,5" />
+                <Button x:Name="StopButton" Content="Стоп сервера" Click="StopButton_Click" Margin="5" Padding="10,5" IsEnabled="False" />
                 <Label Content="Последний QR-код:" FontWeight="Bold" Margin="5,10,5,0" />
                 <TextBox x:Name="LastResultTextBox" IsReadOnly="True" MinHeight="50" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" Background="#f0f0f0" Margin="5" />
             </StackPanel>
