@@ -183,6 +183,14 @@ public partial class MainWindow : Window
                     else
                     {
                         Log($"Код не соответствует правилам (ожидалось 7 блоков, получено {parts.Length}). Код не сохранен.");
+                        Dispatcher.Invoke(() =>
+                        {
+                            MessageBox.Show(this,
+                                "Уберите товар с конвейера и запустите триггер для продолжения работы.",
+                                "Ошибка сканирования",
+                                MessageBoxButton.OK,
+                                MessageBoxImage.Warning);
+                        });
                     }
                 }
             }
