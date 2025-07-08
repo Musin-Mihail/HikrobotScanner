@@ -11,6 +11,7 @@
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
             <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
@@ -19,7 +20,6 @@
             <ColumnDefinition Width="*" />
         </Grid.ColumnDefinitions>
 
-        <!-- Секция настроек -->
         <GroupBox Header="Настройки подключения" Grid.Row="0" Grid.Column="0" Grid.ColumnSpan="2" Padding="10">
             <Grid>
                 <Grid.RowDefinitions>
@@ -35,7 +35,7 @@
                 </Grid.ColumnDefinitions>
 
                 <Label Content="IP камеры:" Grid.Row="0" Grid.Column="0" VerticalAlignment="Center" />
-                <TextBox x:Name="CameraIpTextBox" Text="192.168.1.100" Grid.Row="0" Grid.Column="1" Margin="5" VerticalAlignment="Center" />
+                <TextBox x:Name="CameraIpTextBox" Text="192.168.1.20" Grid.Row="0" Grid.Column="1" Margin="5" VerticalAlignment="Center" />
 
                 <Label Content="Порт триггера:" Grid.Row="0" Grid.Column="2" VerticalAlignment="Center" />
                 <TextBox x:Name="TriggerPortTextBox" Text="2001" Grid.Row="0" Grid.Column="3" Margin="5" VerticalAlignment="Center" />
@@ -48,7 +48,6 @@
             </Grid>
         </GroupBox>
 
-        <!-- Секция управления и результатов -->
         <GroupBox Header="Управление и Результат" Grid.Row="1" Grid.Column="0" Padding="10">
             <StackPanel>
                 <Button x:Name="SendTriggerButton" Content="Отправить триггер" Click="SendTriggerButton_Click" Margin="5" Padding="10,5" />
@@ -57,13 +56,15 @@
             </StackPanel>
         </GroupBox>
 
-        <!-- Секция логов -->
-        <GroupBox Header="Лог событий" Grid.Row="1" Grid.Column="1" Grid.RowSpan="2" Padding="10">
+        <GroupBox Header="Генерация кодов" Grid.Row="2" Grid.Column="0" Padding="10">
+            <StackPanel />
+        </GroupBox>
+
+        <GroupBox Header="Лог событий" Grid.Row="1" Grid.Column="1" Grid.RowSpan="3" Padding="10">
             <TextBox x:Name="LogTextBox" IsReadOnly="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" Background="#f0f0f0" />
         </GroupBox>
 
-        <!-- Статус бар -->
-        <StatusBar Grid.Row="3" Grid.Column="0" Grid.ColumnSpan="2">
+        <StatusBar Grid.Row="4" Grid.Column="0" Grid.ColumnSpan="2">
             <StatusBarItem>
                 <TextBlock x:Name="StatusTextBlock" Text="Сервер не запущен." />
             </StatusBarItem>
