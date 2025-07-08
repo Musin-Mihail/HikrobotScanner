@@ -21,13 +21,68 @@ public partial class MainWindow : Window
 
     private long _barcodeCounter = 1;
     private const string CounterFileName = "barcode_counter.txt";
+    private readonly List<string> _receivedCodes = [];
 
     public MainWindow()
     {
         InitializeComponent();
-        StartListeningServer();
         LoadBarcodeCounter();
         UpdateCounterDisplay();
+    }
+
+    private void StartButton_Click(object sender, RoutedEventArgs e)
+    {
+        StartListeningServer();
+        StartButton.IsEnabled = false;
+        StopButton.IsEnabled = true;
+    }
+
+    private void StopButton_Click(object sender, RoutedEventArgs e)
+    {
+        _cancellationTokenSource?.Cancel();
+        _tcpServer?.Stop();
+        SaveReceivedCodesToFile();
+        StartButton.IsEnabled = true;
+        StopButton.IsEnabled = false;
+        StatusTextBlock.Text = "Сервер остановлен.";
+    }
+
+    /// <summary>
+    /// Обработчик нажатия кнопки для отправки триггера.
+    /// </summary>
+    private async void SendTriggerButton_Click(object sender, RoutedEventArgs e)
+    {
+        var cameraIp = CameraIpTextBox.Text;
+        if (!int.TryParse(TriggerPortTextBox.Text, out int triggerPort))
+        {
+            Log("Ошибка: Неверный формат порта триггера.");
+            return;
+        }
+
+        var triggerCommand = TriggerCommandTextBox.Text;
+        Log($"Отправка триггера '{triggerCommand}' на {cameraIp}:{triggerPort}...");
+        try
+        {
+            using (var client = new TcpClient())
+            {
+                var connectTask = client.ConnectAsync(cameraIp, triggerPort);
+                if (await Task.WhenAny(connectTask, Task.Delay(3000)) == connectTask)
+                {
+                    var data = Encoding.UTF8.GetBytes(triggerCommand);
+                    var stream = client.GetStream();
+                    await stream.WriteAsync(data, 0, data.Length);
+                    Log("Триггер успешно отправлен.");
+                }
+                else
+                {
+                    Log("Ошибка: Не удалось подключиться к камере (таймаут).");
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Log($"Ошибка при отправке триггера: {ex.Message}");
+        }
     }
 
     /// <summary>
@@ -35,7 +90,7 @@ public partial class MainWindow : Window
     /// </summary>
     private void StartListeningServer()
     {
-        if (!int.TryParse(ListenPortTextBox.Text, out int port))
+        if (!int.TryParse(ListenPortTextBox.Text, out var port))
         {
             Log("Ошибка: Неверный формат локального порта.");
             return;
@@ -43,7 +98,6 @@ public partial class MainWindow : Window
 
         _cancellationTokenSource = new CancellationTokenSource();
         _tcpServer = new TcpListener(IPAddress.Any, port);
-
         Task.Run(() => ListenForClients(_cancellationTokenSource.Token), _cancellationTokenSource.Token);
 
         Log($"Сервер запущен. Ожидание данных на порту {port}...");
@@ -58,13 +112,16 @@ public partial class MainWindow : Window
         try
         {
             _tcpServer.Start();
-
             while (!token.IsCancellationRequested)
             {
-                var client = await _tcpServer.AcceptTcpClientAsync();
+                var client = await _tcpServer.AcceptTcpClientAsync(token);
                 Log("Камера подключилась для отправки данных.");
                 _ = HandleClientComm(client, token);
             }
+        }
+        catch (OperationCanceledException)
+        {
+            // Это ожидаемое исключение при отмене токена, логировать не нужно.
         }
         catch (SocketException ex)
         {
@@ -100,8 +157,28 @@ public partial class MainWindow : Window
                     var receivedData = Encoding.UTF8.GetString(buffer, 0, bytesRead);
                     Log($"Получены данные: {receivedData}");
                     Dispatcher.Invoke(() => { LastResultTextBox.Text = receivedData; });
+
+                    var parts = receivedData.Split([";;"], StringSplitOptions.None);
+                    if (parts.Length == 7)
+                    {
+                        _receivedCodes.Add(receivedData);
+                        Log("Код соответствует правилам и сохранен.");
+                    }
+                    else
+                    {
+                        Log($"Код не соответствует правилам (ожидалось 7 блоков, получено {parts.Length}). Код не сохранен.");
+                    }
                 }
             }
+        }
+        catch (OperationCanceledException)
+        {
+            // Это ожидаемое исключение при отмене, логировать не нужно.
+        }
+        catch (IOException ex) when (ex.InnerException is SocketException)
+        {
+            // Это может произойти при резком закрытии соединения, не является критической ошибкой.
+            Log("Соединение было принудительно разорвано.");
         }
         catch (Exception ex)
         {
@@ -114,42 +191,27 @@ public partial class MainWindow : Window
         }
     }
 
-    /// <summary>
-    /// Обработчик нажатия кнопки для отправки триггера.
-    /// </summary>
-    private async void SendTriggerButton_Click(object sender, RoutedEventArgs e)
+    private void SaveReceivedCodesToFile()
     {
-        var cameraIp = CameraIpTextBox.Text;
-        if (!int.TryParse(TriggerPortTextBox.Text, out int triggerPort))
+        if (_receivedCodes.Count == 0)
         {
-            Log("Ошибка: Неверный формат порта триггера.");
+            Log("Нет полученных кодов для сохранения.");
             return;
         }
 
-        var triggerCommand = TriggerCommandTextBox.Text;
-        Log($"Отправка триггера '{triggerCommand}' на {cameraIp}:{triggerPort}...");
-
         try
         {
-            using (var client = new TcpClient())
-            {
-                var connectTask = client.ConnectAsync(cameraIp, triggerPort);
-                if (await Task.WhenAny(connectTask, Task.Delay(3000)) == connectTask)
-                {
-                    var data = Encoding.UTF8.GetBytes(triggerCommand);
-                    var stream = client.GetStream();
-                    await stream.WriteAsync(data, 0, data.Length);
-                    Log("Триггер успешно отправлен.");
-                }
-                else
-                {
-                    Log("Ошибка: Не удалось подключиться к камере (таймаут).");
-                }
-            }
+            var directory = AppDomain.CurrentDomain.BaseDirectory;
+            var fileName = $"ReceivedCodes_{DateTime.Now:yyyyMMdd_HHmmss}.txt";
+            var filePath = Path.Combine(directory, fileName);
+
+            File.WriteAllLines(filePath, _receivedCodes);
+            Log($"Сохранено {_receivedCodes.Count} кодов в файл: {filePath}");
+            _receivedCodes.Clear();
         }
         catch (Exception ex)
         {
-            Log($"Ошибка при отправке триггера: {ex.Message}");
+            Log($"Ошибка сохранения файла: {ex.Message}");
         }
     }
 
@@ -187,15 +249,11 @@ public partial class MainWindow : Window
     {
         try
         {
-            if (File.Exists(CounterFileName))
-            {
-                var content = File.ReadAllText(CounterFileName);
-                if (long.TryParse(content, out var savedCounter))
-                {
-                    _barcodeCounter = savedCounter;
-                    Log($"Счетчик загружен: {_barcodeCounter}");
-                }
-            }
+            if (!File.Exists(CounterFileName)) return;
+            var content = File.ReadAllText(CounterFileName);
+            if (!long.TryParse(content, out var savedCounter)) return;
+            _barcodeCounter = savedCounter;
+            Log($"Счетчик загружен: {_barcodeCounter}");
         }
         catch (Exception ex)
         {
@@ -234,7 +292,7 @@ public partial class MainWindow : Window
     /// </summary>
     private void GenerateButton_Click(object sender, RoutedEventArgs e)
     {
-        if (!int.TryParse(QuantityTextBox.Text, out int quantity) || quantity <= 0)
+        if (!int.TryParse(QuantityTextBox.Text, out var quantity) || quantity <= 0)
         {
             Log("Ошибка: Введите корректное количество кодов (положительное число).");
             MessageBox.Show("Введите корректное количество кодов.", "Ошибка ввода", MessageBoxButton.OK, MessageBoxImage.Error);
@@ -275,7 +333,6 @@ public partial class MainWindow : Window
             PageHeight = 1.5 * 96,
             PagePadding = new Thickness(5)
         };
-
         doc.ColumnWidth = doc.PageWidth;
 
         var barcodeWriter = new BarcodeWriterPixelData
@@ -296,7 +353,6 @@ public partial class MainWindow : Window
                 Orientation = Orientation.Vertical,
                 Margin = new Thickness(0, 20, 0, 5)
             };
-
             var pixelData = barcodeWriter.Write(barcodeValue);
             var wpfBitmap = PixelDataToWriteableBitmap(pixelData);
 
@@ -306,14 +362,12 @@ public partial class MainWindow : Window
                 Source = wpfBitmap,
                 Stretch = Stretch.None
             };
-
             var barcodeText = new TextBlock
             {
                 Text = barcodeValue,
                 HorizontalAlignment = HorizontalAlignment.Center,
                 FontSize = 12
             };
-
             panel.Children.Add(barcodeImage);
             panel.Children.Add(barcodeText);
 
@@ -337,13 +391,11 @@ public partial class MainWindow : Window
             96,
             PixelFormats.Bgr32,
             null);
-
         wpfBitmap.WritePixels(
             new Int32Rect(0, 0, pixelData.Width, pixelData.Height),
             pixelData.Pixels,
             pixelData.Width * 4,
             0);
-
         return wpfBitmap;
     }
 }
