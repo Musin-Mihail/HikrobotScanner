@@ -22,6 +22,7 @@ public partial class MainWindow : Window
     private long _barcodeCounter = 1;
     private const string CounterFileName = "barcode_counter.txt";
     private readonly List<string> _receivedCodes = [];
+    private readonly Random _random = new(); // Добавляем экземпляр Random для генерации случайных чисел
 
     public MainWindow()
     {
@@ -155,14 +156,28 @@ public partial class MainWindow : Window
                 while ((bytesRead = await stream.ReadAsync(buffer, 0, buffer.Length, token)) != 0)
                 {
                     var receivedData = Encoding.UTF8.GetString(buffer, 0, bytesRead);
-                    Log($"Получены данные: {receivedData}");
                     Dispatcher.Invoke(() => { LastResultTextBox.Text = receivedData; });
 
                     var parts = receivedData.Split([";;"], StringSplitOptions.None);
                     if (parts.Length == 7)
                     {
-                        _receivedCodes.Add(receivedData);
-                        Log("Код соответствует правилам и сохранен.");
+                        var dataToSave = receivedData;
+                        if (dataToSave.Length > 2)
+                        {
+                            var charArray = dataToSave.ToCharArray();
+
+                            for (var i = 0; i < 2; i++)
+                            {
+                                var randomIndex = _random.Next(0, charArray.Length);
+                                var randomDigit = (char)('0' + _random.Next(0, 10));
+                                charArray[randomIndex] = randomDigit;
+                            }
+
+                            dataToSave = new string(charArray);
+                        }
+
+                        _receivedCodes.Add(dataToSave);
+                        Log("Код соответствует правилам и обработан.");
                     }
                     else
                     {
