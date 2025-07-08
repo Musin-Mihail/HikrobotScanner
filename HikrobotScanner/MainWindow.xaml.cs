@@ -156,12 +156,13 @@ public partial class MainWindow : Window
                 while ((bytesRead = await stream.ReadAsync(buffer, 0, buffer.Length, token)) != 0)
                 {
                     var receivedData = Encoding.UTF8.GetString(buffer, 0, bytesRead);
-                    Dispatcher.Invoke(() => { LastResultTextBox.Text = receivedData; });
+                    var modifiedString = receivedData[2..];
+                    Dispatcher.Invoke(() => { LastResultTextBox.Text = modifiedString; });
 
-                    var parts = receivedData.Split([";;"], StringSplitOptions.None);
+                    var parts = modifiedString.Split([";;"], StringSplitOptions.None);
                     if (parts.Length == 7)
                     {
-                        var dataToSave = receivedData;
+                        var dataToSave = modifiedString;
                         if (dataToSave.Length > 2)
                         {
                             var charArray = dataToSave.ToCharArray();
@@ -247,13 +248,14 @@ public partial class MainWindow : Window
     }
 
     /// <summary>
-    /// Корректно останавливает сервер при закрытии окна.
+    /// Корректно останавливает сервер и сохраняет данные при закрытии окна.
     /// </summary>
     private void Window_Closing(object sender, CancelEventArgs e)
     {
         _cancellationTokenSource?.Cancel();
         _tcpServer?.Stop();
         SaveBarcodeCounter();
+        SaveReceivedCodesToFile();
         Log("Приложение закрывается...");
     }
 
