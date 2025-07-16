@@ -46,9 +46,6 @@
 
         <GroupBox Header="Управление и Результат" Grid.Row="1" Grid.Column="0" Padding="10">
             <StackPanel>
-                <Button x:Name="StartPipelineButton" Content="Запуск (LineOut3)" Click="StartPipelineButton_Click" Margin="5" Padding="10,5" ToolTip="Отправляет команду 'start' для запуска съемки и активации LineOut3." />
-                <Button x:Name="StopPipelineButton" Content="Стоп (LineOut4)" Click="StopPipelineButton_Click" Margin="5" Padding="10,5" ToolTip="Отправляет команду 'stop' для остановки съемки и активации LineOut4." />
-                <Separator Margin="5,10" />
                 <Button x:Name="StartServerButton" Content="Старт сервера" Click="StartServerButton_Click" Margin="5" Padding="10,5" />
                 <Button x:Name="StopServerButton" Content="Стоп сервера" Click="StopServerButton_Click" Margin="5" Padding="10,5" IsEnabled="False" />
             </StackPanel>

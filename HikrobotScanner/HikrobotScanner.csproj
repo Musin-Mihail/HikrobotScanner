@@ -12,4 +12,10 @@
         <PackageReference Include="ZXing.Net" Version="0.16.10"/>
     </ItemGroup>
 
+    <ItemGroup>
+      <Reference Include="MvCameraControl.Net">
+        <HintPath>MvCameraControl.Net.dll</HintPath>
+      </Reference>
+    </ItemGroup>
+
 </Project>

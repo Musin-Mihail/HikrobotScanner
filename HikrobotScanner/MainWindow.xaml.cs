@@ -2,12 +2,14 @@
 using System.IO;
 using System.Net;
 using System.Net.Sockets;
+using System.Runtime.InteropServices;
 using System.Text;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Documents;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
+using MvCamCtrl.NET;
 using ZXing;
 using ZXing.Common;
 using ZXing.Rendering;
@@ -19,6 +21,9 @@ public partial class MainWindow : Window
     private TcpListener _tcpServer;
     private CancellationTokenSource _cancellationTokenSource;
 
+    private MyCamera _camera;
+    private bool _isCameraConnected;
+
     private long _barcodeCounter = 1;
     private const string CounterFileName = "barcode_counter.txt";
     private readonly List<string> _receivedCodes = [];
@@ -29,10 +34,13 @@ public partial class MainWindow : Window
         InitializeComponent();
         LoadBarcodeCounter();
         UpdateCounterDisplay();
+        _camera = new MyCamera();
+        _isCameraConnected = false;
     }
 
     private void StartServerButton_Click(object sender, RoutedEventArgs e)
     {
+        InitializeCamera();
         StartListeningServer();
         StartServerButton.IsEnabled = false;
         StopServerButton.IsEnabled = true;
@@ -46,69 +54,6 @@ public partial class MainWindow : Window
         StartServerButton.IsEnabled = true;
         StopServerButton.IsEnabled = false;
         StatusTextBlock.Text = "Сервер остановлен.";
-    }
-
-    /// <summary>
-    /// Обработчик нажатия кнопки для запуска конвейера и активации LineOut3.
-    /// </summary>
-    private async void StartPipelineButton_Click(object sender, RoutedEventArgs e)
-    {
-        await SendCommandToCameraAsync("start");
-    }
-
-    /// <summary>
-    /// Обработчик нажатия кнопки для остановки конвейера и активации LineOut4.
-    /// </summary>
-    private async void StopPipelineButton_Click(object sender, RoutedEventArgs e)
-    {
-        await SendCommandToCameraAsync("stop");
-    }
-
-    /// <summary>
-    /// Отправляет текстовую команду на IP-адрес и порт камеры.
-    /// </summary>
-    /// <param name="command">Текстовая команда для отправки (например, "start" или "stop").</param>
-    private async Task SendCommandToCameraAsync(string command)
-    {
-        string cameraIp = "";
-        int triggerPort = 0;
-
-        await Dispatcher.InvokeAsync(() =>
-        {
-            cameraIp = CameraIpTextBox.Text;
-            int.TryParse(TriggerPortTextBox.Text, out triggerPort);
-        });
-
-        if (triggerPort == 0)
-        {
-            Log("Ошибка: Неверный формат порта для команд.");
-            return;
-        }
-
-        Log($"Отправка команды '{command}' на {cameraIp}:{triggerPort}...");
-        try
-        {
-            using (var client = new TcpClient())
-            {
-                var connectTask = client.ConnectAsync(cameraIp, triggerPort);
-                if (await Task.WhenAny(connectTask, Task.Delay(3000)) == connectTask)
-                {
-                    await connectTask;
-                    var data = Encoding.UTF8.GetBytes(command);
-                    var stream = client.GetStream();
-                    await stream.WriteAsync(data, 0, data.Length);
-                    Log($"Команда '{command}' успешно отправлена.");
-                }
-                else
-                {
-                    Log("Ошибка: Не удалось подключиться к камере (таймаут).");
-                }
-            }
-        }
-        catch (Exception ex)
-        {
-            Log($"Ошибка при отправке команды '{command}': {ex.Message}");
-        }
     }
 
     /// <summary>
@@ -201,11 +146,11 @@ public partial class MainWindow : Window
 
                         _receivedCodes.Add(dataToSave);
                         Log("Код соответствует правилам и обработан.");
+                        await SendPulseToLineOutAsync(3);
                     }
                     else
                     {
                         Log($"Код не соответствует правилам (ожидалось 7 блоков, получено {parts.Length}). Код не сохранен.");
-                        await SendCommandToCameraAsync("stop");
                         Dispatcher.Invoke(() =>
                         {
                             MessageBox.Show(this,
@@ -324,6 +269,7 @@ public partial class MainWindow : Window
     {
         _cancellationTokenSource?.Cancel();
         _tcpServer?.Stop();
+        CleanupCamera();
         SaveBarcodeCounter();
         SaveReceivedCodesToFile();
         Log("Приложение закрывается...");
@@ -389,5 +335,122 @@ public partial class MainWindow : Window
         {
             Log($"Ошибка сохранения файла: {ex.Message}");
         }
+    }
+
+    /// <summary>
+    /// Инициализация и подключение к камере.
+    /// </summary>
+    private void InitializeCamera()
+    {
+        if (_isCameraConnected)
+        {
+            return;
+        }
+
+        MyCamera.MV_CC_DEVICE_INFO_LIST stDevList = new MyCamera.MV_CC_DEVICE_INFO_LIST();
+        int nRet = MyCamera.MV_CC_EnumDevices_NET(MyCamera.MV_GIGE_DEVICE | MyCamera.MV_USB_DEVICE, ref stDevList);
+        if (nRet != MyCamera.MV_OK)
+        {
+            Log("Ошибка: Не удалось перечислить устройства.");
+            return;
+        }
+
+        if (stDevList.nDeviceNum == 0)
+        {
+            Log("Ошибка: Камеры не найдены.");
+            return;
+        }
+
+        // Используем первую найденную камеру. Для более сложного случая можно искать по IP.
+        MyCamera.MV_CC_DEVICE_INFO stDevInfo = (MyCamera.MV_CC_DEVICE_INFO)Marshal.PtrToStructure(stDevList.pDeviceInfo[0], typeof(MyCamera.MV_CC_DEVICE_INFO));
+
+        nRet = _camera.MV_CC_CreateDevice_NET(ref stDevInfo);
+        if (nRet != MyCamera.MV_OK)
+        {
+            Log($"Ошибка: Не удалось создать экземпляр камеры. Код: {nRet:X}");
+            return;
+        }
+
+        nRet = _camera.MV_CC_OpenDevice_NET();
+        if (nRet != MyCamera.MV_OK)
+        {
+            Log($"Ошибка: Не удалось открыть камеру. Код: {nRet:X}");
+            _camera.MV_CC_DestroyDevice_NET();
+            return;
+        }
+
+        _isCameraConnected = true;
+        Log("Камера успешно подключена через SDK.");
+    }
+
+    /// <summary>
+    /// Освобождение ресурсов камеры.
+    /// </summary>
+    private void CleanupCamera()
+    {
+        if (_isCameraConnected && _camera != null)
+        {
+            _camera.MV_CC_CloseDevice_NET();
+            _camera.MV_CC_DestroyDevice_NET();
+            _isCameraConnected = false;
+            Log("Соединение с камерой через SDK закрыто.");
+        }
+    }
+
+    /// <summary>
+    /// Отправляет одиночный импульс на указанную линию вывода.
+    /// </summary>
+    /// <param name="lineNumber">Номер линии (например, 3 для LineOut3).</param>
+    private async Task SendPulseToLineOutAsync(int lineNumber)
+    {
+        if (!_isCameraConnected)
+        {
+            Log("Ошибка: Невозможно отправить импульс, камера не подключена.");
+            return;
+        }
+
+        await Task.Run(() =>
+        {
+            // --- ОБНОВЛЕННАЯ ЛОГИКА на основе вашего примера ---
+            // Используем прямое имя линии, как в вашем рабочем коде.
+            string lineSelector = $"LineOut{lineNumber}";
+
+            Log($"Отправка импульса на {lineSelector}...");
+
+            // 1. Выбрать линию вывода
+            int nRet = _camera.MV_CC_SetEnumValueByString_NET("LineSelector", lineSelector);
+            if (nRet != MyCamera.MV_OK)
+            {
+                Log($"Ошибка: Не удалось выбрать {lineSelector}. Код: {nRet:X}");
+                return;
+            }
+
+            // 2. Установить источником события программный триггер.
+            // "SoftTriggerActive" - корректное значение из вашего примера.
+            nRet = _camera.MV_CC_SetEnumValueByString_NET("LineSource", "SoftTriggerActive");
+            if (nRet != MyCamera.MV_OK)
+            {
+                Log($"Ошибка: Не удалось установить источник сигнала для {lineSelector}. Код: {nRet:X}");
+                return;
+            }
+
+            // 3. Установить длительность импульса (например, 200 мс = 200000 мкс)
+            // Эта команда настраивает, как долго будет длиться импульс после команды LineTriggerSoftware.
+            nRet = _camera.MV_CC_SetIntValueEx_NET("LineOutDuration", 200000);
+            if (MyCamera.MV_OK != nRet)
+            {
+                Log($"Предупреждение: Не удалось установить длительность импульса (LineOutDuration). Код: {nRet:X}");
+            }
+
+            // 4. Выполнить команду для генерации импульса
+            nRet = _camera.MV_CC_SetCommandValue_NET("LineTriggerSoftware");
+            if (nRet != MyCamera.MV_OK)
+            {
+                Log($"Ошибка при отправке команды LineTriggerSoftware. Код ошибки: {nRet:X}");
+                return;
+            }
+
+            Log($"Команда на отправку импульса на {lineSelector} успешно отправлена.");
+        });
     }
 }
