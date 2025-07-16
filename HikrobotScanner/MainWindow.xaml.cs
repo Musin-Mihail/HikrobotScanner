@@ -51,6 +51,7 @@ public partial class MainWindow : Window
         _cancellationTokenSource?.Cancel();
         _tcpServer?.Stop();
         SaveReceivedCodesToFile();
+        CleanupCamera();
         StartServerButton.IsEnabled = true;
         StopServerButton.IsEnabled = false;
         StatusTextBlock.Text = "Сервер остановлен.";
@@ -388,13 +389,11 @@ public partial class MainWindow : Window
     /// </summary>
     private void CleanupCamera()
     {
-        if (_isCameraConnected && _camera != null)
-        {
-            _camera.MV_CC_CloseDevice_NET();
-            _camera.MV_CC_DestroyDevice_NET();
-            _isCameraConnected = false;
-            Log("Соединение с камерой через SDK закрыто.");
-        }
+        if (!_isCameraConnected || _camera == null) return;
+        _camera.MV_CC_CloseDevice_NET();
+        _camera.MV_CC_DestroyDevice_NET();
+        _isCameraConnected = false;
+        Log("Соединение с камерой через SDK закрыто.");
     }
 
     /// <summary>
