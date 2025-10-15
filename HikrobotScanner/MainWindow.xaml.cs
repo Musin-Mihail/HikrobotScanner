@@ -149,9 +149,6 @@ public partial class MainWindow : Window
                     var receivedData = Encoding.UTF8.GetString(buffer, 0, bytesRead);
                     var modifiedString = receivedData[2..];
                     Dispatcher.Invoke(() => { LastResultTextBox.Text = modifiedString; });
-
-
-                    // Получаем ожидаемое количество блоков из ComboBox в потоке UI
                     int expectedPartsCount = 0;
                     Dispatcher.Invoke(() =>
                     {
@@ -160,8 +157,6 @@ public partial class MainWindow : Window
                             int.TryParse(selectedItem.Content.ToString(), out expectedPartsCount);
                         }
                     });
-
-                    // Если по какой-то причине значение не получено, используем 7 по умолчанию
                     if (expectedPartsCount == 0)
                     {
                         expectedPartsCount = 7;
@@ -170,20 +165,28 @@ public partial class MainWindow : Window
                     var parts = modifiedString.Split([";;"], StringSplitOptions.None);
                     if (parts.Length == expectedPartsCount)
                     {
-                        var dataToSave = modifiedString;
-                        if (dataToSave.Length > 2)
+                        var firstBarcode = parts[0];
+                        if (!_receivedCodes.Contains(firstBarcode))
                         {
-                            var charArray = dataToSave.ToCharArray();
-                            for (var i = 0; i < 2; i++)
+                            var dataToSave = modifiedString;
+                            if (dataToSave.Length > 2)
                             {
-                                var randomIndex = _random.Next(0, charArray.Length);
-                                var randomDigit = (char)('0' + _random.Next(0, 10));
-                                charArray[randomIndex] = randomDigit;
+                                var charArray = dataToSave.ToCharArray();
+                                for (var i = 0; i < 2; i++)
+                                {
+                                    var randomIndex = _random.Next(0, charArray.Length);
+                                    var randomDigit = (char)('0' + _random.Next(0, 10));
+                                    charArray[randomIndex] = randomDigit;
+                                }
+                                dataToSave = new string(charArray);
                             }
-                            dataToSave = new string(charArray);
+                            _receivedCodes.Add(firstBarcode);
+                            Log("Код соответствует правилам и обработан");
                         }
-                        _receivedCodes.Add(dataToSave);
-                        Log("Код соответствует правилам и обработан");
+                        else
+                        {
+                            Log($"Штрих-код {firstBarcode} уже сохранен.");
+                        }
                     }
                     else
                     {
@@ -217,6 +220,11 @@ public partial class MainWindow : Window
             client.Close();
             Log("Камера отключилась.");
         }
+    }
+    private void ClearDatabaseButton_Click(object sender, RoutedEventArgs e)
+    {
+        _receivedCodes.Clear();
+        Log("База данных очищена.");
     }
 
     private void GenerateButton_Click(object sender, RoutedEventArgs e)

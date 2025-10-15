@@ -63,6 +63,7 @@
             <StackPanel>
                 <Button x:Name="StartServerButton" Content="Старт сервера" Click="StartServerButton_Click" Margin="5" Padding="10,5" />
                 <Button x:Name="StopServerButton" Content="Стоп сервера" Click="StopServerButton_Click" Margin="5" Padding="10,5" IsEnabled="False" />
+                <Button x:Name="ClearDatabaseButton" Content="Очистить базу данных" Click="ClearDatabaseButton_Click" Margin="5" Padding="10,5" />
             </StackPanel>
         </GroupBox>
 
