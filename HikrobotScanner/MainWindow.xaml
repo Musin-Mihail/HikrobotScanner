@@ -4,7 +4,7 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         mc:Ignorable="d"
-        Title="Hikrobot ID5000 Controller" Height="650" Width="700"
+        Title="Hikrobot ID5000 Controller" Height="850" Width="700"
         WindowStartupLocation="CenterScreen"
         Closing="Window_Closing">
     <Grid Margin="15">
@@ -27,6 +27,8 @@
                     <RowDefinition Height="Auto" />
                     <RowDefinition Height="Auto" />
                     <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
                 </Grid.RowDefinitions>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="Auto" />
@@ -35,23 +37,39 @@
                     <ColumnDefinition Width="*" />
                 </Grid.ColumnDefinitions>
 
-                <Label Content="IP камеры:" Grid.Row="0" Grid.Column="0" VerticalAlignment="Center" />
+                <Label Content="IP камеры 1:" Grid.Row="0" Grid.Column="0" VerticalAlignment="Center" />
                 <TextBox x:Name="CameraIpTextBox" Text="192.168.1.20" Grid.Row="0" Grid.Column="1" Margin="5" VerticalAlignment="Center" />
 
-                <Label Content="Порт команд (триггер):" Grid.Row="0" Grid.Column="2" VerticalAlignment="Center" />
+                <Label Content="Порт команд 1 (триггер):" Grid.Row="0" Grid.Column="2" VerticalAlignment="Center" />
                 <TextBox x:Name="TriggerPortTextBox" Text="2001" Grid.Row="0" Grid.Column="3" Margin="5" VerticalAlignment="Center" />
 
-                <Label Content="Локальный порт (прием):" Grid.Row="1" Grid.Column="2" VerticalAlignment="Center" />
+                <Label Content="Локальный порт 1 (прием):" Grid.Row="1" Grid.Column="2" VerticalAlignment="Center" />
                 <TextBox x:Name="ListenPortTextBox" Text="5000" Grid.Row="1" Grid.Column="3" Margin="5" VerticalAlignment="Center" />
 
-                <Label Content="Ожидаемое кол-во кодов:" Grid.Row="2" Grid.Column="0" VerticalAlignment="Center" />
+                <Label Content="Ожидаемое кол-во QR кодов:" Grid.Row="2" Grid.Column="0" VerticalAlignment="Center" />
                 <ComboBox x:Name="ExpectedPartsComboBox" Grid.Row="2" Grid.Column="1" Margin="5" VerticalAlignment="Center" SelectedIndex="0">
-                    <ComboBoxItem Content="7" />
-                    <ComboBoxItem Content="9" />
+                    <ComboBoxItem Content="6" />
+                    <ComboBoxItem Content="8" />
                 </ComboBox>
 
-                <Label Content="Профиль настроек камеры:" Grid.Row="2" Grid.Column="2" VerticalAlignment="Center" />
+                <Label Content="Профиль настроек камеры 1:" Grid.Row="2" Grid.Column="2" VerticalAlignment="Center" />
                 <ComboBox x:Name="UserSetComboBox" Grid.Row="2" Grid.Column="3" Margin="5" VerticalAlignment="Center" SelectedIndex="2">
+                    <ComboBoxItem Content="UserSet1" />
+                    <ComboBoxItem Content="UserSet2" />
+                    <ComboBoxItem Content="UserSet3" />
+                </ComboBox>
+
+                <Label Content="IP камеры 2:" Grid.Row="3" Grid.Column="0" VerticalAlignment="Center" />
+                <TextBox x:Name="CameraIpTextBox2" Text="192.168.1.21" Grid.Row="3" Grid.Column="1" Margin="5" VerticalAlignment="Center" />
+
+                <Label Content="Порт команд 2 (триггер):" Grid.Row="3" Grid.Column="2" VerticalAlignment="Center" />
+                <TextBox x:Name="TriggerPortTextBox2" Text="2002" Grid.Row="3" Grid.Column="3" Margin="5" VerticalAlignment="Center" />
+
+                <Label Content="Локальный порт 2 (прием):" Grid.Row="4" Grid.Column="2" VerticalAlignment="Center" />
+                <TextBox x:Name="ListenPortTextBox2" Text="5001" Grid.Row="4" Grid.Column="3" Margin="5" VerticalAlignment="Center" />
+
+                <Label Content="Профиль настроек камеры 2:" Grid.Row="5" Grid.Column="2" VerticalAlignment="Center" />
+                <ComboBox x:Name="UserSetComboBox2" Grid.Row="5" Grid.Column="3" Margin="5" VerticalAlignment="Center" SelectedIndex="2">
                     <ComboBoxItem Content="UserSet1" />
                     <ComboBoxItem Content="UserSet2" />
                     <ComboBoxItem Content="UserSet3" />

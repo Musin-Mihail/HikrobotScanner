@@ -82,5 +82,65 @@ namespace HikrobotScanner.Properties {
                 this["UserSetIndex"] = value;
             }
         }
+        
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("192.168.1.21")]
+        public string CameraIp2 {
+            get {
+                return ((string)(this["CameraIp2"]));
+            }
+            set {
+                this["CameraIp2"] = value;
+            }
+        }
+        
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("2001")]
+        public string TriggerPort2 {
+            get {
+                return ((string)(this["TriggerPort2"]));
+            }
+            set {
+                this["TriggerPort2"] = value;
+            }
+        }
+        
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("5100")]
+        public string ListenPort2 {
+            get {
+                return ((string)(this["ListenPort2"]));
+            }
+            set {
+                this["ListenPort2"] = value;
+            }
+        }
+        
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("0")]
+        public int ExpectedPartsIndex2 {
+            get {
+                return ((int)(this["ExpectedPartsIndex2"]));
+            }
+            set {
+                this["ExpectedPartsIndex2"] = value;
+            }
+        }
+        
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("2")]
+        public int UserSetIndex2 {
+            get {
+                return ((int)(this["UserSetIndex2"]));
+            }
+            set {
+                this["UserSetIndex2"] = value;
+            }
+        }
     }
 }

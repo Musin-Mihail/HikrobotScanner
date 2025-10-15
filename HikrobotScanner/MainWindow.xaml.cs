@@ -20,6 +20,7 @@ namespace HikrobotScanner;
 public partial class MainWindow : Window
 {
     private TcpListener _tcpServer;
+    private TcpListener _tcpServer2;
     private CancellationTokenSource _cancellationTokenSource;
 
     private MyCamera _camera;
@@ -29,6 +30,9 @@ public partial class MainWindow : Window
     private const string CounterFileName = "barcode_counter.txt";
     private readonly List<string> _receivedCodes = [];
     private readonly Random _random = new();
+
+    // Buffer for the first camera's data
+    private string _firstCameraDataBuffer = null;
 
     public MainWindow()
     {
@@ -44,8 +48,14 @@ public partial class MainWindow : Window
         CameraIpTextBox.Text = Settings.Default.CameraIp;
         TriggerPortTextBox.Text = Settings.Default.TriggerPort;
         ListenPortTextBox.Text = Settings.Default.ListenPort;
-        ExpectedPartsComboBox.SelectedIndex = Settings.Default.ExpectedPartsIndex;
         UserSetComboBox.SelectedIndex = Settings.Default.UserSetIndex;
+
+        CameraIpTextBox2.Text = Settings.Default.CameraIp2;
+        TriggerPortTextBox2.Text = Settings.Default.TriggerPort2;
+        ListenPortTextBox2.Text = Settings.Default.ListenPort2;
+        UserSetComboBox2.SelectedIndex = Settings.Default.UserSetIndex2;
+
+        ExpectedPartsComboBox.SelectedIndex = Settings.Default.ExpectedPartsIndex;
 
         Log("Настройки подключения успешно загружены.");
     }
@@ -54,8 +64,14 @@ public partial class MainWindow : Window
         Settings.Default.CameraIp = CameraIpTextBox.Text;
         Settings.Default.TriggerPort = TriggerPortTextBox.Text;
         Settings.Default.ListenPort = ListenPortTextBox.Text;
-        Settings.Default.ExpectedPartsIndex = ExpectedPartsComboBox.SelectedIndex;
         Settings.Default.UserSetIndex = UserSetComboBox.SelectedIndex;
+
+        Settings.Default.CameraIp2 = CameraIpTextBox2.Text;
+        Settings.Default.TriggerPort2 = TriggerPortTextBox2.Text;
+        Settings.Default.ListenPort2 = ListenPortTextBox2.Text;
+        Settings.Default.UserSetIndex2 = UserSetComboBox2.SelectedIndex;
+
+        Settings.Default.ExpectedPartsIndex = ExpectedPartsComboBox.SelectedIndex;
 
         Settings.Default.Save();
         Log("Настройки подключения сохранены.");
@@ -73,6 +89,7 @@ public partial class MainWindow : Window
     {
         _cancellationTokenSource?.Cancel();
         _tcpServer?.Stop();
+        _tcpServer2?.Stop();
         SaveReceivedCodesToFile();
         CleanupCamera();
         StartServerButton.IsEnabled = true;
@@ -81,36 +98,43 @@ public partial class MainWindow : Window
     }
 
     /// <summary>
-    /// Запускает TCP-сервер для прослушивания входящих данных от камеры.
+    /// Запускает TCP-сервер для прослушивания входящих данных от камер.
     /// </summary>
     private void StartListeningServer()
     {
-        if (!int.TryParse(ListenPortTextBox.Text, out var port))
+        if (!int.TryParse(ListenPortTextBox.Text, out var port1) || !int.TryParse(ListenPortTextBox2.Text, out var port2))
         {
             Log("Ошибка: Неверный формат локального порта.");
             return;
         }
 
         _cancellationTokenSource = new CancellationTokenSource();
-        _tcpServer = new TcpListener(IPAddress.Any, port);
-        Task.Run(() => ListenForClients(_cancellationTokenSource.Token), _cancellationTokenSource.Token);
 
-        Log($"Сервер запущен. Ожидание данных на порту {port}...");
-        StatusTextBlock.Text = $"Сервер слушает порт {port}";
+        // Listener for Camera 1
+        _tcpServer = new TcpListener(IPAddress.Any, port1);
+        Task.Run(() => ListenForClients(_tcpServer, 1, _cancellationTokenSource.Token), _cancellationTokenSource.Token);
+        Log($"Сервер для камеры 1 запущен. Ожидание данных на порту {port1}...");
+
+        // Listener for Camera 2
+        _tcpServer2 = new TcpListener(IPAddress.Any, port2);
+        Task.Run(() => ListenForClients(_tcpServer2, 2, _cancellationTokenSource.Token), _cancellationTokenSource.Token);
+        Log($"Сервер для камеры 2 запущен. Ожидание данных на порту {port2}...");
+
+        StatusTextBlock.Text = $"Сервер слушает порты {port1} & {port2}";
     }
 
     /// <summary>
     /// Асинхронный метод, который слушает входящие подключения в цикле.
     /// </summary>
-    private async Task ListenForClients(CancellationToken token)
+    private async Task ListenForClients(TcpListener server, int cameraNumber, CancellationToken token)
     {
         try
         {
-            _tcpServer.Start();
+            server.Start();
             while (!token.IsCancellationRequested)
             {
-                var client = await _tcpServer.AcceptTcpClientAsync(token);
-                Log("Камера подключилась для отправки данных.");
+                var client = await server.AcceptTcpClientAsync(token);
+                Log($"Камера {cameraNumber} подключилась для отправки данных.");
                 _ = HandleClientComm(client, token);
             }
         }
@@ -128,8 +152,8 @@ public partial class MainWindow : Window
         }
         finally
         {
-            _tcpServer?.Stop();
-            Log("Сервер остановлен.");
+            server?.Stop();
+            Log($"Сервер для камеры {cameraNumber} остановлен.");
         }
     }
 
@@ -147,66 +171,26 @@ public partial class MainWindow : Window
                 while (!token.IsCancellationRequested && (bytesRead = await stream.ReadAsync(buffer, 0, buffer.Length, token)) != 0)
                 {
                     var receivedData = Encoding.UTF8.GetString(buffer, 0, bytesRead);
-                    var modifiedString = receivedData[2..];
-                    Dispatcher.Invoke(() => { LastResultTextBox.Text = modifiedString; });
-                    int expectedPartsCount = 0;
-                    Dispatcher.Invoke(() =>
+                    lock (this)
                     {
-                        if (ExpectedPartsComboBox.SelectedItem is ComboBoxItem selectedItem)
+                        if (_firstCameraDataBuffer == null)
                         {
-                            int.TryParse(selectedItem.Content.ToString(), out expectedPartsCount);
-                        }
-                    });
-                    if (expectedPartsCount == 0)
-                    {
-                        expectedPartsCount = 7;
-                    }
-
-                    var parts = modifiedString.Split([";;"], StringSplitOptions.None);
-                    if (parts.Length == expectedPartsCount)
-                    {
-                        var firstBarcode = parts[0];
-                        if (!_receivedCodes.Contains(firstBarcode))
-                        {
-                            var dataToSave = modifiedString;
-                            if (dataToSave.Length > 2)
-                            {
-                                var charArray = dataToSave.ToCharArray();
-                                for (var i = 0; i < 2; i++)
-                                {
-                                    var randomIndex = _random.Next(0, charArray.Length);
-                                    var randomDigit = (char)('0' + _random.Next(0, 10));
-                                    charArray[randomIndex] = randomDigit;
-                                }
-                                dataToSave = new string(charArray);
-                            }
-                            _receivedCodes.Add(firstBarcode);
-                            Log("Код соответствует правилам и обработан");
+                            // Data from the first camera arrived
+                            _firstCameraDataBuffer = receivedData;
+                            Log("Получены данные с первой камеры, ожидание данных со второй.");
                         }
                         else
                         {
-                            Log($"Штрих-код {firstBarcode} уже сохранен.");
+                            // Data from the second camera arrived, process both
+                            Log("Получены данные со второй камеры, начинаю обработку.");
+                            ProcessCombinedData(_firstCameraDataBuffer, receivedData);
+                            _firstCameraDataBuffer = null; // Reset buffer for the next pair
                         }
-                    }
-                    else
-                    {
-                        Log($"Код не соответствует правилам (ожидалось {expectedPartsCount} блоков, получено {parts.Length}). Код не сохранен.");
-                        Dispatcher.Invoke(() =>
-                        {
-                            MessageBox.Show(this,
-                                "Конвейер остановлен. Уберите товар с конвейера и запустите триггер для продолжения работы.",
-                                "Ошибка сканирования",
-                                MessageBoxButton.OK,
-                                MessageBoxImage.Warning);
-                        });
                     }
                 }
             }
         }
-        catch (OperationCanceledException)
-        {
-            /* Игнорируем */
-        }
+        catch (OperationCanceledException) { /* Игнорируем */ }
         catch (IOException ex) when (ex.InnerException is SocketException)
         {
             Log("Соединение было принудительно разорвано.");
@@ -221,6 +205,95 @@ public partial class MainWindow : Window
             Log("Камера отключилась.");
         }
     }
+
+    /// <summary>
+    /// Processes and validates data from both cameras.
+    /// </summary>
+    private void ProcessCombinedData(string data1, string data2)
+    {
+        var combinedData = $"{data1.Trim()};;{data2.Trim()}";
+        Dispatcher.Invoke(() => { LastResultTextBox.Text = combinedData; });
+
+        var allParts = combinedData.Split(new[] { ";;" }, StringSplitOptions.RemoveEmptyEntries);
+
+        var linearCodes = new List<string>();
+        var qrCodes = new List<string>();
+
+        foreach (var part in allParts)
+        {
+            if (part.Length == 18 && long.TryParse(part, out _))
+            {
+                linearCodes.Add(part);
+            }
+            else
+            {
+                qrCodes.Add(part);
+            }
+        }
+
+        var uniqueLinearCodes = linearCodes.Distinct().ToList();
+
+        if (uniqueLinearCodes.Count == 0)
+        {
+            Log("Ошибка: Линейный штрих-код не найден.");
+            ShowError("Линейный штрих-код не найден.");
+            return;
+        }
+
+        if (uniqueLinearCodes.Count > 1)
+        {
+            Log("Ошибка: Найдено несколько разных линейных штрих-кодов.");
+            ShowError("Найдено несколько разных линейных штрих-кодов.");
+            return;
+        }
+
+        var finalLinearCode = uniqueLinearCodes.Single();
+        if (_receivedCodes.Any(c => c.StartsWith(finalLinearCode + ";;")))
+        {
+            Log($"Штрих-код {finalLinearCode} уже сохранен.");
+            return;
+        }
+
+        int expectedPartsCount = 0;
+        Dispatcher.Invoke(() =>
+        {
+            if (ExpectedPartsComboBox.SelectedItem is ComboBoxItem selectedItem)
+            {
+                int.TryParse(selectedItem.Content.ToString(), out expectedPartsCount);
+            }
+        });
+        if (expectedPartsCount == 0) expectedPartsCount = 6; // Default fallback
+
+        var uniqueQrCodes = qrCodes.Distinct().ToList();
+
+        if (uniqueQrCodes.Count < expectedPartsCount)
+        {
+            Log($"Ошибка: Количество QR-кодов ({uniqueQrCodes.Count}) меньше ожидаемого ({expectedPartsCount}).");
+            ShowError($"Недостаточно QR-кодов (Найдено: {uniqueQrCodes.Count}, Ожидалось: {expectedPartsCount}).");
+            return;
+        }
+
+        // Success: save the codes
+        var codesToSave = new List<string> { finalLinearCode };
+        codesToSave.AddRange(uniqueQrCodes);
+        var dataToSave = string.Join(";;", codesToSave);
+
+        _receivedCodes.Add(dataToSave);
+        Log($"Код успешно обработан и сохранен: {finalLinearCode}");
+    }
+
+    private void ShowError(string message)
+    {
+        Dispatcher.Invoke(() =>
+        {
+            MessageBox.Show(this,
+                $"{message}",
+                "Ошибка сканирования",
+                MessageBoxButton.OK,
+                MessageBoxImage.Warning);
+        });
+    }
+
     private void ClearDatabaseButton_Click(object sender, RoutedEventArgs e)
     {
         _receivedCodes.Clear();
@@ -268,13 +341,11 @@ public partial class MainWindow : Window
             PagePadding = new Thickness(5),
             ColumnWidth = 2.5 * 96
         };
-
         var barcodeWriter = new BarcodeWriterPixelData
         {
             Format = BarcodeFormat.CODE_128,
             Options = new EncodingOptions { Height = 80, Width = 300, Margin = 10 }
         };
-
         foreach (var barcodeValue in barcodes)
         {
             var panel = new StackPanel { Orientation = Orientation.Vertical, Margin = new Thickness(0, 20, 0, 5) };
@@ -315,6 +386,7 @@ public partial class MainWindow : Window
         SaveSettings();
         _cancellationTokenSource?.Cancel();
         _tcpServer?.Stop();
+        _tcpServer2?.Stop();
         CleanupCamera();
         SaveBarcodeCounter();
         SaveReceivedCodesToFile();
@@ -426,7 +498,6 @@ public partial class MainWindow : Window
 
         // Получаем выбранный UserSet из ComboBox
         string selectedUserSet = ((ComboBoxItem)UserSetComboBox.SelectedItem).Content.ToString();
-
         Log($"Загрузка настроек из {selectedUserSet}...");
 
         // 1. Выбираем UserSet на основе выбора пользователя
@@ -450,7 +521,6 @@ public partial class MainWindow : Window
         }
 
         Log($"Настройки из {selectedUserSet} успешно загружены.");
-
         // 3. Запуск захвата изображений (перевод камеры в режим Normal)
         nRet = _camera.MV_CC_StartGrabbing_NET();
         if (nRet != MyCamera.MV_OK)
