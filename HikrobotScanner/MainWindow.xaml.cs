@@ -127,31 +127,44 @@ public partial class MainWindow : Window
                     var modifiedString = receivedData[2..];
                     Dispatcher.Invoke(() => { LastResultTextBox.Text = modifiedString; });
 
+
+                    // Получаем ожидаемое количество блоков из ComboBox в потоке UI
+                    int expectedPartsCount = 0;
+                    Dispatcher.Invoke(() =>
+                    {
+                        if (ExpectedPartsComboBox.SelectedItem is ComboBoxItem selectedItem)
+                        {
+                            int.TryParse(selectedItem.Content.ToString(), out expectedPartsCount);
+                        }
+                    });
+
+                    // Если по какой-то причине значение не получено, используем 7 по умолчанию
+                    if (expectedPartsCount == 0)
+                    {
+                        expectedPartsCount = 7;
+                    }
+
                     var parts = modifiedString.Split([";;"], StringSplitOptions.None);
-                    if (parts.Length == 7)
+                    if (parts.Length == expectedPartsCount)
                     {
                         var dataToSave = modifiedString;
                         if (dataToSave.Length > 2)
                         {
                             var charArray = dataToSave.ToCharArray();
-
                             for (var i = 0; i < 2; i++)
                             {
                                 var randomIndex = _random.Next(0, charArray.Length);
                                 var randomDigit = (char)('0' + _random.Next(0, 10));
                                 charArray[randomIndex] = randomDigit;
                             }
-
                             dataToSave = new string(charArray);
                         }
-
                         _receivedCodes.Add(dataToSave);
-                        Log("Код соответствует правилам и обработан.");
-                        await SendPulseToLineOutAsync(3);
+                        Log("Код соответствует правилам и обработан. Позже добавлю визуальный эфффект");
                     }
                     else
                     {
-                        Log($"Код не соответствует правилам (ожидалось 7 блоков, получено {parts.Length}). Код не сохранен.");
+                        Log($"Код не соответствует правилам (ожидалось {expectedPartsCount} блоков, получено {parts.Length}). Код не сохранен.");
                         Dispatcher.Invoke(() =>
                         {
                             MessageBox.Show(this,
@@ -433,63 +446,6 @@ public partial class MainWindow : Window
         _camera.MV_CC_DestroyDevice_NET();
         _isCameraConnected = false;
         Log("Соединение с камерой через SDK закрыто.");
-    }
-
-    /// <summary>
-    /// Отправляет одиночный импульс на указанную линию вывода.
-    /// </summary>
-    /// <param name="lineNumber">Номер линии (например, 3 для LineOut3).</param>
-    private async Task SendPulseToLineOutAsync(int lineNumber)
-    {
-        if (!_isCameraConnected)
-        {
-            Log("Ошибка: Невозможно отправить импульс, камера не подключена.");
-            return;
-        }
-
-        await Task.Run(() =>
-        {
-            // --- ОБНОВЛЕННАЯ ЛОГИКА на основе вашего примера ---
-            // Используем прямое имя линии, как в вашем рабочем коде.
-            string lineSelector = $"LineOut{lineNumber}";
-
-            Log($"Отправка импульса на {lineSelector}...");
-
-            // 1. Выбрать линию вывода
-            int nRet = _camera.MV_CC_SetEnumValueByString_NET("LineSelector", lineSelector);
-            if (nRet != MyCamera.MV_OK)
-            {
-                Log($"Ошибка: Не удалось выбрать {lineSelector}. Код: {nRet:X}");
-                return;
-            }
-
-            // 2. Установить источником события программный триггер.
-            // "SoftTriggerActive" - корректное значение из вашего примера.
-            nRet = _camera.MV_CC_SetEnumValueByString_NET("LineSource", "SoftTriggerActive");
-            if (nRet != MyCamera.MV_OK)
-            {
-                Log($"Ошибка: Не удалось установить источник сигнала для {lineSelector}. Код: {nRet:X}");
-                return;
-            }
-
-            // 3. Установить длительность импульса (например, 200 мс = 200000 мкс)
-            // Эта команда настраивает, как долго будет длиться импульс после команды LineTriggerSoftware.
-            nRet = _camera.MV_CC_SetIntValueEx_NET("LineOutDuration", 200000);
-            if (MyCamera.MV_OK != nRet)
-            {
-                Log($"Предупреждение: Не удалось установить длительность импульса (LineOutDuration). Код: {nRet:X}");
-            }
-
-            // 4. Выполнить команду для генерации импульса
-            nRet = _camera.MV_CC_SetCommandValue_NET("LineTriggerSoftware");
-            if (nRet != MyCamera.MV_OK)
-            {
-                Log($"Ошибка при отправке команды LineTriggerSoftware. Код ошибки: {nRet:X}");
-                return;
-            }
-
-            Log($"Команда на отправку импульса на {lineSelector} успешно отправлена.");
-        });
     }
 
     /// <summary>
