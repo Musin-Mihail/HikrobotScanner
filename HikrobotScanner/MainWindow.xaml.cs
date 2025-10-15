@@ -23,15 +23,15 @@ public partial class MainWindow : Window
     private TcpListener _tcpServer2;
     private CancellationTokenSource _cancellationTokenSource;
 
-    private MyCamera _camera;
-    private bool _isCameraConnected;
+    // Изменено для поддержки нескольких камер
+    private readonly List<MyCamera> _cameras = [];
+    private bool AreCamerasConnected => _cameras.Count > 0;
 
     private long _barcodeCounter = 1;
     private const string CounterFileName = "barcode_counter.txt";
     private readonly List<string> _receivedCodes = [];
     private readonly Random _random = new();
 
-    // Buffer for the first camera's data
     private string _firstCameraDataBuffer = null;
 
     public MainWindow()
@@ -39,8 +39,6 @@ public partial class MainWindow : Window
         InitializeComponent();
         LoadBarcodeCounter();
         UpdateCounterDisplay();
-        _camera = new MyCamera();
-        _isCameraConnected = false;
         LoadSettings();
     }
     private void LoadSettings()
@@ -109,17 +107,14 @@ public partial class MainWindow : Window
         }
 
         _cancellationTokenSource = new CancellationTokenSource();
-
         // Listener for Camera 1
         _tcpServer = new TcpListener(IPAddress.Any, port1);
         Task.Run(() => ListenForClients(_tcpServer, 1, _cancellationTokenSource.Token), _cancellationTokenSource.Token);
         Log($"Сервер для камеры 1 запущен. Ожидание данных на порту {port1}...");
-
         // Listener for Camera 2
         _tcpServer2 = new TcpListener(IPAddress.Any, port2);
         Task.Run(() => ListenForClients(_tcpServer2, 2, _cancellationTokenSource.Token), _cancellationTokenSource.Token);
         Log($"Сервер для камеры 2 запущен. Ожидание данных на порту {port2}...");
-
         StatusTextBlock.Text = $"Сервер слушает порты {port1} & {port2}";
     }
 
@@ -175,6 +170,7 @@ public partial class MainWindow : Window
                     {
                         if (_firstCameraDataBuffer == null)
                         {
+
                             // Data from the first camera arrived
                             _firstCameraDataBuffer = receivedData;
                             Log("Получены данные с первой камеры, ожидание данных со второй.");
@@ -232,7 +228,6 @@ public partial class MainWindow : Window
         }
 
         var uniqueLinearCodes = linearCodes.Distinct().ToList();
-
         if (uniqueLinearCodes.Count == 0)
         {
             Log("Ошибка: Линейный штрих-код не найден.");
@@ -265,7 +260,6 @@ public partial class MainWindow : Window
         if (expectedPartsCount == 0) expectedPartsCount = 6; // Default fallback
 
         var uniqueQrCodes = qrCodes.Distinct().ToList();
-
         if (uniqueQrCodes.Count < expectedPartsCount)
         {
             Log($"Ошибка: Количество QR-кодов ({uniqueQrCodes.Count}) меньше ожидаемого ({expectedPartsCount}).");
@@ -290,7 +284,7 @@ public partial class MainWindow : Window
                 $"{message}",
                 "Ошибка сканирования",
                 MessageBoxButton.OK,
-                MessageBoxImage.Warning);
+                     MessageBoxImage.Warning);
         });
     }
 
@@ -456,14 +450,17 @@ public partial class MainWindow : Window
     }
 
     /// <summary>
-    /// Инициализация и подключение к камере.
+    /// Инициализация и подключение к камерам.
     /// </summary>
     private void InitializeCamera()
     {
-        if (_isCameraConnected)
+        if (AreCamerasConnected)
         {
+            Log("Камеры уже подключены.");
             return;
         }
+
+        CleanupCamera();
 
         MyCamera.MV_CC_DEVICE_INFO_LIST stDevList = new MyCamera.MV_CC_DEVICE_INFO_LIST();
         int nRet = MyCamera.MV_CC_EnumDevices_NET(MyCamera.MV_GIGE_DEVICE | MyCamera.MV_USB_DEVICE, ref stDevList);
@@ -473,81 +470,128 @@ public partial class MainWindow : Window
             return;
         }
 
-        if (stDevList.nDeviceNum == 0)
+        if (stDevList.nDeviceNum < 2)
         {
-            Log("Ошибка: Камеры не найдены.");
+            Log($"Ошибка: Найдено {stDevList.nDeviceNum} камер, но требуется 2.");
             return;
         }
 
-        MyCamera.MV_CC_DEVICE_INFO stDevInfo = (MyCamera.MV_CC_DEVICE_INFO)Marshal.PtrToStructure(stDevList.pDeviceInfo[0], typeof(MyCamera.MV_CC_DEVICE_INFO));
+        Log($"Найдено {stDevList.nDeviceNum} камер. Подключение к первым двум...");
 
-        nRet = _camera.MV_CC_CreateDevice_NET(ref stDevInfo);
-        if (nRet != MyCamera.MV_OK)
+        for (int i = 0; i < 2; i++)
         {
-            Log($"Ошибка: Не удалось создать экземпляр камеры. Код: {nRet:X}");
-            return;
+            var camera = new MyCamera();
+            MyCamera.MV_CC_DEVICE_INFO stDevInfo = (MyCamera.MV_CC_DEVICE_INFO)Marshal.PtrToStructure(stDevList.pDeviceInfo[i], typeof(MyCamera.MV_CC_DEVICE_INFO));
+
+            string cameraName = "Безымянная камера";
+            try
+            {
+                if (stDevInfo.nTLayerType == MyCamera.MV_GIGE_DEVICE)
+                {
+                    // 1. Получаем байты для GigE устройства
+                    byte[] gigeInfoBytes = stDevInfo.SpecialInfo.stGigEInfo;
+                    // 2. Преобразуем байты в нужную структуру
+                    MyCamera.MV_GIGE_DEVICE_INFO gigeInfo = (MyCamera.MV_GIGE_DEVICE_INFO)MyCamera.ByteToStruct(gigeInfoBytes, typeof(MyCamera.MV_GIGE_DEVICE_INFO));
+                    // 3. Получаем имя
+                    cameraName = gigeInfo.chUserDefinedName;
+                }
+                else if (stDevInfo.nTLayerType == MyCamera.MV_USB_DEVICE)
+                {
+                    // То же самое для USB-устройства
+                    byte[] usbInfoBytes = stDevInfo.SpecialInfo.stUsb3VInfo;
+                    MyCamera.MV_USB3_DEVICE_INFO usbInfo = (MyCamera.MV_USB3_DEVICE_INFO)MyCamera.ByteToStruct(usbInfoBytes, typeof(MyCamera.MV_USB3_DEVICE_INFO));
+                    cameraName = usbInfo.chUserDefinedName;
+                }
+            }
+            catch (Exception ex)
+            {
+                Log($"Не удалось прочитать имя камеры {i + 1}: {ex.Message}");
+            }
+
+            if (string.IsNullOrEmpty(cameraName))
+            {
+                cameraName = $"Камера {i + 1} (без имени)";
+            }
+
+            Log($"Попытка подключения к камере: {cameraName}");
+
+            nRet = camera.MV_CC_CreateDevice_NET(ref stDevInfo);
+            if (nRet != MyCamera.MV_OK)
+            {
+                Log($"Ошибка: Не удалось создать экземпляр для камеры {cameraName}. Код: {nRet:X}");
+                continue;
+            }
+
+            nRet = camera.MV_CC_OpenDevice_NET();
+            if (nRet != MyCamera.MV_OK)
+            {
+                Log($"Ошибка: Не удалось открыть камеру {cameraName}. Код: {nRet:X}");
+                camera.MV_CC_DestroyDevice_NET();
+                continue;
+            }
+
+            ComboBox userSetComboBox = (i == 0) ? UserSetComboBox : UserSetComboBox2;
+            string selectedUserSet = ((ComboBoxItem)userSetComboBox.SelectedItem).Content.ToString();
+            Log($"Загрузка настроек из {selectedUserSet} для камеры {cameraName}...");
+
+            nRet = camera.MV_CC_SetEnumValueByString_NET("UserSetSelector", selectedUserSet);
+            if (nRet != MyCamera.MV_OK)
+            {
+                Log($"Ошибка: Не удалось выбрать {selectedUserSet} для камеры {cameraName}. Код: {nRet:X}");
+                camera.MV_CC_CloseDevice_NET();
+                camera.MV_CC_DestroyDevice_NET();
+                continue;
+            }
+
+            nRet = camera.MV_CC_SetCommandValue_NET("UserSetLoad");
+            if (nRet != MyCamera.MV_OK)
+            {
+                Log($"Ошибка: Не удалось загрузить настройки из {selectedUserSet} для камеры {cameraName}. Код: {nRet:X}");
+                camera.MV_CC_CloseDevice_NET();
+                camera.MV_CC_DestroyDevice_NET();
+                continue;
+            }
+            Log($"Настройки из {selectedUserSet} успешно загружены для камеры {cameraName}.");
+
+            nRet = camera.MV_CC_StartGrabbing_NET();
+            if (nRet != MyCamera.MV_OK)
+            {
+                Log($"Ошибка: Не удалось начать захват изображений для камеры {cameraName}. Код: {nRet:X}");
+                camera.MV_CC_CloseDevice_NET();
+                camera.MV_CC_DestroyDevice_NET();
+                continue;
+            }
+
+            Log($"Захват изображений запущен для камеры {cameraName}.");
+            _cameras.Add(camera);
         }
 
-        nRet = _camera.MV_CC_OpenDevice_NET();
-        if (nRet != MyCamera.MV_OK)
+        if (AreCamerasConnected)
         {
-            Log($"Ошибка: Не удалось открыть камеру. Код: {nRet:X}");
-            _camera.MV_CC_DestroyDevice_NET();
-            return;
+            Log($"Успешно подключено {_cameras.Count} камер(ы) через SDK.");
         }
-
-        // Получаем выбранный UserSet из ComboBox
-        string selectedUserSet = ((ComboBoxItem)UserSetComboBox.SelectedItem).Content.ToString();
-        Log($"Загрузка настроек из {selectedUserSet}...");
-
-        // 1. Выбираем UserSet на основе выбора пользователя
-        nRet = _camera.MV_CC_SetEnumValueByString_NET("UserSetSelector", selectedUserSet);
-        if (nRet != MyCamera.MV_OK)
+        else
         {
-            Log($"Ошибка: Не удалось выбрать {selectedUserSet}. Код: {nRet:X}");
-            _camera.MV_CC_CloseDevice_NET();
-            _camera.MV_CC_DestroyDevice_NET();
-            return;
+            Log("Не удалось подключить ни одной камеры.");
         }
-
-        // 2. Выполняем команду загрузки
-        nRet = _camera.MV_CC_SetCommandValue_NET("UserSetLoad");
-        if (nRet != MyCamera.MV_OK)
-        {
-            Log($"Ошибка: Не удалось загрузить настройки из {selectedUserSet}. Код: {nRet:X}");
-            _camera.MV_CC_CloseDevice_NET();
-            _camera.MV_CC_DestroyDevice_NET();
-            return;
-        }
-
-        Log($"Настройки из {selectedUserSet} успешно загружены.");
-        // 3. Запуск захвата изображений (перевод камеры в режим Normal)
-        nRet = _camera.MV_CC_StartGrabbing_NET();
-        if (nRet != MyCamera.MV_OK)
-        {
-            Log($"Ошибка: Не удалось начать захват изображений. Код: {nRet:X}");
-            _camera.MV_CC_CloseDevice_NET();
-            _camera.MV_CC_DestroyDevice_NET();
-            return;
-        }
-
-        Log("Захват изображений запущен (режим Normal).");
-
-        _isCameraConnected = true;
-        Log("Камера успешно подключена через SDK.");
     }
 
+
     /// <summary>
-    /// Освобождение ресурсов камеры.
+    /// Освобождение ресурсов камер.
     /// </summary>
     private void CleanupCamera()
     {
-        if (!_isCameraConnected || _camera == null) return;
-        _camera.MV_CC_StopGrabbing_NET();
-        Log("Захват изображений остановлен.");
-        _camera.MV_CC_CloseDevice_NET();
-        _camera.MV_CC_DestroyDevice_NET();
-        _isCameraConnected = false;
-        Log("Соединение с камерой через SDK закрыто.");
+        if (!AreCamerasConnected) return;
+
+        Log("Освобождение ресурсов камер...");
+        foreach (var camera in _cameras)
+        {
+            camera.MV_CC_StopGrabbing_NET();
+            camera.MV_CC_CloseDevice_NET();
+            camera.MV_CC_DestroyDevice_NET();
+        }
+        _cameras.Clear(); // Очищаем список после освобождения ресурсов
+        Log("Все камеры отключены и ресурсы освобождены.");
     }
 }
