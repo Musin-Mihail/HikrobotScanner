@@ -1,4 +1,5 @@
-﻿using System.ComponentModel;
+﻿using HikrobotScanner.Properties;
+using System.ComponentModel;
 using System.IO;
 using System.Net;
 using System.Net.Sockets;
@@ -36,6 +37,28 @@ public partial class MainWindow : Window
         UpdateCounterDisplay();
         _camera = new MyCamera();
         _isCameraConnected = false;
+        LoadSettings();
+    }
+    private void LoadSettings()
+    {
+        CameraIpTextBox.Text = Settings.Default.CameraIp;
+        TriggerPortTextBox.Text = Settings.Default.TriggerPort;
+        ListenPortTextBox.Text = Settings.Default.ListenPort;
+        ExpectedPartsComboBox.SelectedIndex = Settings.Default.ExpectedPartsIndex;
+        UserSetComboBox.SelectedIndex = Settings.Default.UserSetIndex;
+
+        Log("Настройки подключения успешно загружены.");
+    }
+    private void SaveSettings()
+    {
+        Settings.Default.CameraIp = CameraIpTextBox.Text;
+        Settings.Default.TriggerPort = TriggerPortTextBox.Text;
+        Settings.Default.ListenPort = ListenPortTextBox.Text;
+        Settings.Default.ExpectedPartsIndex = ExpectedPartsComboBox.SelectedIndex;
+        Settings.Default.UserSetIndex = UserSetComboBox.SelectedIndex;
+
+        Settings.Default.Save();
+        Log("Настройки подключения сохранены.");
     }
 
     private void StartServerButton_Click(object sender, RoutedEventArgs e)
@@ -281,6 +304,7 @@ public partial class MainWindow : Window
 
     private void Window_Closing(object sender, CancelEventArgs e)
     {
+        SaveSettings();
         _cancellationTokenSource?.Cancel();
         _tcpServer?.Stop();
         CleanupCamera();
