@@ -1,21 +1,17 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
-
-    <PropertyGroup>
-        <OutputType>WinExe</OutputType>
-        <TargetFramework>net9.0-windows</TargetFramework>
-        <Nullable>enable</Nullable>
-        <ImplicitUsings>enable</ImplicitUsings>
-        <UseWPF>true</UseWPF>
-    </PropertyGroup>
-
-    <ItemGroup>
-        <PackageReference Include="ZXing.Net" Version="0.16.10"/>
-    </ItemGroup>
-
-    <ItemGroup>
-      <Reference Include="MvCameraControl.Net">
-        <HintPath>MvCameraControl.Net.dll</HintPath>
-      </Reference>
-    </ItemGroup>
-
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net9.0-windows</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <UseWPF>true</UseWPF>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="ZXing.Net" Version="0.16.10" />
+  </ItemGroup>
+  <ItemGroup>
+    <Reference Include="MvCameraControl.Net">
+      <HintPath>MvCameraControl.Net.dll</HintPath>
+    </Reference>
+  </ItemGroup>
 </Project>
