@@ -26,6 +26,7 @@
                     <RowDefinition Height="Auto" />
                     <RowDefinition Height="Auto" />
                     <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
                 </Grid.RowDefinitions>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="Auto" />
@@ -47,6 +48,13 @@
                 <ComboBox x:Name="ExpectedPartsComboBox" Grid.Row="2" Grid.Column="1" Margin="5" VerticalAlignment="Center" SelectedIndex="0">
                     <ComboBoxItem Content="7" />
                     <ComboBoxItem Content="9" />
+                </ComboBox>
+
+                <Label Content="Профиль настроек камеры:" Grid.Row="2" Grid.Column="2" VerticalAlignment="Center" />
+                <ComboBox x:Name="UserSetComboBox" Grid.Row="2" Grid.Column="3" Margin="5" VerticalAlignment="Center" SelectedIndex="2">
+                    <ComboBoxItem Content="UserSet1" />
+                    <ComboBoxItem Content="UserSet2" />
+                    <ComboBoxItem Content="UserSet3" />
                 </ComboBox>
             </Grid>
         </GroupBox>

@@ -160,7 +160,7 @@ public partial class MainWindow : Window
                             dataToSave = new string(charArray);
                         }
                         _receivedCodes.Add(dataToSave);
-                        Log("Код соответствует правилам и обработан. Позже добавлю визуальный эфффект");
+                        Log("Код соответствует правилам и обработан");
                     }
                     else
                     {
@@ -375,7 +375,6 @@ public partial class MainWindow : Window
             return;
         }
 
-        // Используем первую найденную камеру. Для более сложного случая можно искать по IP.
         MyCamera.MV_CC_DEVICE_INFO stDevInfo = (MyCamera.MV_CC_DEVICE_INFO)Marshal.PtrToStructure(stDevList.pDeviceInfo[0], typeof(MyCamera.MV_CC_DEVICE_INFO));
 
         nRet = _camera.MV_CC_CreateDevice_NET(ref stDevInfo);
@@ -393,14 +392,16 @@ public partial class MainWindow : Window
             return;
         }
 
-        // Загрузка настроек из UserSet3
-        Log("Загрузка настроек из User Set 3...");
+        // Получаем выбранный UserSet из ComboBox
+        string selectedUserSet = ((ComboBoxItem)UserSetComboBox.SelectedItem).Content.ToString();
 
-        // 1. Выбираем UserSet3
-        nRet = _camera.MV_CC_SetEnumValueByString_NET("UserSetSelector", "UserSet3");
+        Log($"Загрузка настроек из {selectedUserSet}...");
+
+        // 1. Выбираем UserSet на основе выбора пользователя
+        nRet = _camera.MV_CC_SetEnumValueByString_NET("UserSetSelector", selectedUserSet);
         if (nRet != MyCamera.MV_OK)
         {
-            Log($"Ошибка: Не удалось выбрать UserSet3. Код: {nRet:X}");
+            Log($"Ошибка: Не удалось выбрать {selectedUserSet}. Код: {nRet:X}");
             _camera.MV_CC_CloseDevice_NET();
             _camera.MV_CC_DestroyDevice_NET();
             return;
@@ -410,13 +411,13 @@ public partial class MainWindow : Window
         nRet = _camera.MV_CC_SetCommandValue_NET("UserSetLoad");
         if (nRet != MyCamera.MV_OK)
         {
-            Log($"Ошибка: Не удалось загрузить настройки из UserSet3. Код: {nRet:X}");
+            Log($"Ошибка: Не удалось загрузить настройки из {selectedUserSet}. Код: {nRet:X}");
             _camera.MV_CC_CloseDevice_NET();
             _camera.MV_CC_DestroyDevice_NET();
             return;
         }
 
-        Log("Настройки из UserSet3 успешно загружены.");
+        Log($"Настройки из {selectedUserSet} успешно загружены.");
 
         // 3. Запуск захвата изображений (перевод камеры в режим Normal)
         nRet = _camera.MV_CC_StartGrabbing_NET();
@@ -446,95 +447,5 @@ public partial class MainWindow : Window
         _camera.MV_CC_DestroyDevice_NET();
         _isCameraConnected = false;
         Log("Соединение с камерой через SDK закрыто.");
-    }
-
-    /// <summary>
-    /// Включает постоянный сигнал на указанной линии вывода.
-    /// </summary>
-    /// <param name="lineNumber">Номер линии (например, 3 для LineOut3).</param>
-    private async Task TurnOnSignalAsync(int lineNumber)
-    {
-        if (!_isCameraConnected)
-        {
-            Log("Ошибка: Невозможно отправить сигнал, камера не подключена.");
-            return;
-        }
-
-        await Task.Run(() =>
-        {
-            string lineSelector = $"LineOut{lineNumber}";
-            Log($"Включение сигнала на {lineSelector}...");
-
-            // 1. Выбрать линию вывода
-            int nRet = _camera.MV_CC_SetEnumValueByString_NET("LineSelector", lineSelector);
-            if (nRet != MyCamera.MV_OK)
-            {
-                Log($"Ошибка: Не удалось выбрать {lineSelector}. Код: {nRet:X}");
-                return;
-            }
-
-            // 2. Установить источником UserOutput для прямого управления
-            nRet = _camera.MV_CC_SetEnumValueByString_NET("LineSource", "UserOutput");
-            if (nRet != MyCamera.MV_OK)
-            {
-                Log($"Ошибка: Не удалось установить источник сигнала 'UserOutput' для {lineSelector}. Код: {nRet:X}");
-                return;
-            }
-
-            // 3. Установить значение линии в 'true' (включено)
-            nRet = _camera.MV_CC_SetBoolValue_NET("UserOutputValue", true);
-            if (nRet != MyCamera.MV_OK)
-            {
-                Log($"Ошибка при включении сигнала. Код ошибки: {nRet:X}");
-                return;
-            }
-
-            Log($"Сигнал на {lineSelector} включен.");
-        });
-    }
-
-    /// <summary>
-    /// Выключает постоянный сигнал на указанной линии вывода.
-    /// </summary>
-    /// <param name="lineNumber">Номер линии (например, 3 для LineOut3).</param>
-    private async Task TurnOffSignalAsync(int lineNumber)
-    {
-        if (!_isCameraConnected)
-        {
-            Log("Ошибка: Невозможно отправить сигнал, камера не подключена.");
-            return;
-        }
-
-        await Task.Run(() =>
-        {
-            string lineSelector = $"LineOut{lineNumber}";
-            Log($"Выключение сигнала на {lineSelector}...");
-
-            // 1. Выбрать линию вывода
-            int nRet = _camera.MV_CC_SetEnumValueByString_NET("LineSelector", lineSelector);
-            if (nRet != MyCamera.MV_OK)
-            {
-                Log($"Ошибка: Не удалось выбрать {lineSelector}. Код: {nRet:X}");
-                return;
-            }
-
-            // 2. Установить источником UserOutput для прямого управления
-            nRet = _camera.MV_CC_SetEnumValueByString_NET("LineSource", "UserOutput");
-            if (nRet != MyCamera.MV_OK)
-            {
-                Log($"Ошибка: Не удалось установить источник сигнала 'UserOutput' для {lineSelector}. Код: {nRet:X}");
-                return;
-            }
-
-            // 3. Установить значение линии в 'false' (выключено)
-            nRet = _camera.MV_CC_SetBoolValue_NET("UserOutputValue", false);
-            if (nRet != MyCamera.MV_OK)
-            {
-                Log($"Ошибка при выключении сигнала. Код ошибки: {nRet:X}");
-                return;
-            }
-
-            Log($"Сигнал на {lineSelector} выключен.");
-        });
     }
 }
