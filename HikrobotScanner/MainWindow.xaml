@@ -105,7 +105,16 @@
             <StatusBarItem>
                 <TextBlock Text="{Binding StatusText, Mode=OneWay}" />
             </StatusBarItem>
+
+            <StatusBarItem HorizontalAlignment="Right">
+                <TextBlock Text="{Binding TrialCountdownText, Mode=OneWay}" 
+                           Foreground="Red" 
+                           FontWeight="Bold" 
+                           Margin="0,0,10,0"/>
+            </StatusBarItem>
+
         </StatusBar>
+
         <Border Grid.Row="0" Grid.Column="0" 
                 Grid.RowSpan="5" Grid.ColumnSpan="2" Background="Transparent"
                 IsHitTestVisible="False" x:Name="ErrorFlashOverlay">

@@ -72,6 +72,12 @@ namespace HikrobotScanner.ViewModels
 
         private readonly List<string> _receivedCodes = new List<string>();
 
+        [ObservableProperty]
+        private string _trialCountdownText;
+
+        private Timer _trialTimer;
+        private DateTime _shutdownTime;
+
         #endregion
 
         #region Конструктор (Внедрение зависимостей)
@@ -96,6 +102,8 @@ namespace HikrobotScanner.ViewModels
             _logger.LogUpdated += (logText) => _dispatcher.InvokeOnUIThread(() => LogText = logText);
 
             LoadApplicationState();
+
+            StartTrialTimer();
         }
         #endregion
 
@@ -122,7 +130,6 @@ namespace HikrobotScanner.ViewModels
 
             IsServerRunning = true;
             StatusText = $"Сервер слушает порты {port1} & {port2}";
-            ShowError("Линейный штрих-код не найден.", "Ошибка сканирования");
         }
         private bool CanStartServer() => IsServerStopped;
 
@@ -308,6 +315,51 @@ namespace HikrobotScanner.ViewModels
 
         #endregion
 
+        #region Логика Демо-режима (НОВЫЙ РЕГИОН)
+
+        private void StartTrialTimer()
+        {
+            _shutdownTime = DateTime.Now.AddMinutes(10);
+
+            _trialTimer = new Timer(
+                OnTimerTick,
+                null,
+                TimeSpan.Zero,
+                TimeSpan.FromSeconds(1)
+            );
+        }
+
+        private void OnTimerTick(object state)
+        {
+            TimeSpan remaining = _shutdownTime - DateTime.Now;
+
+            if (remaining <= TimeSpan.Zero)
+            {
+                _trialTimer?.Dispose();
+                _trialTimer = null;
+
+                _dispatcher.InvokeOnUIThread(() =>
+                {
+                    MessageBox.Show(
+                        "Время работы демонстрационной версии истекло.",
+                        "Демо-режим",
+                        MessageBoxButton.OK,
+                        MessageBoxImage.Warning);
+                    Application.Current.Shutdown();
+                });
+            }
+            else
+            {
+                string newText = $"До отключения: {remaining:m\\:ss}";
+                _dispatcher.InvokeOnUIThread(() =>
+                {
+                    TrialCountdownText = newText;
+                });
+            }
+        }
+
+        #endregion
+
         #region Управление жизненным циклом
 
         private void LoadApplicationState()
@@ -336,6 +388,7 @@ namespace HikrobotScanner.ViewModels
         /// </summary>
         public void OnWindowClosing()
         {
+            _trialTimer?.Dispose();
             _logger.Log("Приложение закрывается...");
             if (IsServerRunning)
             {
