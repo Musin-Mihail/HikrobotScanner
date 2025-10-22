@@ -85,11 +85,14 @@
             </StackPanel>
         </GroupBox>
 
-        <GroupBox Header="Последний QR-код" Grid.Row="2" Grid.Column="0" Padding="10">
-            <TextBox x:Name="LastResultTextBox" IsReadOnly="True" MinHeight="80" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" Background="#f0f0f0" />
+        <GroupBox Header="Данные с первой камеры" Grid.Row="2" Grid.Column="0" Padding="10">
+            <TextBox x:Name="Code1camera" IsReadOnly="True" MinHeight="80" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" Background="#f0f0f0" />
+        </GroupBox>
+        <GroupBox Header="Данные со вторая камеры" Grid.Row="2" Grid.Column="1" Padding="10">
+            <TextBox x:Name="Code2camera" IsReadOnly="True" MinHeight="80" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" Background="#f0f0f0" />
         </GroupBox>
 
-        <GroupBox Header="Генерация кодов" Grid.Row="1" Grid.Column="1" Grid.RowSpan="2" Padding="10">
+        <GroupBox Header="Генерация кодов" Grid.Row="1" Grid.Column="1" Padding="10">
             <StackPanel>
                 <Label Content="Следующий номер кода:" />
                 <TextBlock x:Name="CounterTextBlock" Text="0000001" FontWeight="Bold" Margin="5,0,5,10" FontSize="14" />

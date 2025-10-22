@@ -173,12 +173,14 @@ public partial class MainWindow : Window
 
                             // Data from the first camera arrived
                             _firstCameraDataBuffer = receivedData;
+                            Dispatcher.Invoke(() => { Code1camera.Text = receivedData.Trim(); });
                             Log("Получены данные с первой камеры, ожидание данных со второй.");
                         }
                         else
                         {
                             // Data from the second camera arrived, process both
                             Log("Получены данные со второй камеры, начинаю обработку.");
+                            Dispatcher.Invoke(() => { Code2camera.Text = receivedData.Trim(); });
                             ProcessCombinedData(_firstCameraDataBuffer, receivedData);
                             _firstCameraDataBuffer = null; // Reset buffer for the next pair
                         }
@@ -207,17 +209,17 @@ public partial class MainWindow : Window
     /// </summary>
     private void ProcessCombinedData(string data1, string data2)
     {
-        var combinedData = $"{data1.Trim()};;{data2.Trim()}";
-        Dispatcher.Invoke(() => { LastResultTextBox.Text = combinedData; });
+        var combinedData = $"{data1.Trim()}|{data2.Trim()}";
 
-        var allParts = combinedData.Split(new[] { ";;" }, StringSplitOptions.RemoveEmptyEntries);
+
+        var allParts = combinedData.Split(new[] { "|" }, StringSplitOptions.RemoveEmptyEntries);
 
         var linearCodes = new List<string>();
         var qrCodes = new List<string>();
 
         foreach (var part in allParts)
         {
-            if (part.Length == 18 && long.TryParse(part, out _))
+            if (part.Length == 20 && long.TryParse(part, out _))
             {
                 linearCodes.Add(part);
             }
@@ -243,7 +245,7 @@ public partial class MainWindow : Window
         }
 
         var finalLinearCode = uniqueLinearCodes.Single();
-        if (_receivedCodes.Any(c => c.StartsWith(finalLinearCode + ";;")))
+        if (_receivedCodes.Any(c => c.StartsWith(finalLinearCode + "|")))
         {
             Log($"Штрих-код {finalLinearCode} уже сохранен.");
             return;
@@ -270,7 +272,7 @@ public partial class MainWindow : Window
         // Success: save the codes
         var codesToSave = new List<string> { finalLinearCode };
         codesToSave.AddRange(uniqueQrCodes);
-        var dataToSave = string.Join(";;", codesToSave);
+        var dataToSave = string.Join("|", codesToSave);
 
         _receivedCodes.Add(dataToSave);
         Log($"Код успешно обработан и сохранен: {finalLinearCode}");
