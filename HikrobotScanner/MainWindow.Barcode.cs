@@ -17,7 +17,9 @@ public partial class MainWindow
 {
     private long _barcodeCounter = 1;
     private const string CounterFileName = "barcode_counter.txt";
-    private readonly Random _random = new();
+
+    private const string BarcodePrefix = "004466005944";
+    private const string BarcodeSuffix = "9";
 
     private void PrintBarcodes(List<string> barcodes)
     {

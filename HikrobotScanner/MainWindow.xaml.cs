@@ -27,14 +27,25 @@ public partial class MainWindow : Window
 
     private void StopServerButton_Click(object sender, RoutedEventArgs e)
     {
+        ShutdownServer();
+    }
+
+    /// <summary>
+    /// Выполняет всю логику остановки сервера и очистки ресурсов.
+    /// </summary>
+    private void ShutdownServer()
+    {
         _cancellationTokenSource?.Cancel();
         _tcpServer?.Stop();
         _tcpServer2?.Stop();
+
         SaveReceivedCodesToFile();
         CleanupCamera();
+
         StartServerButton.IsEnabled = true;
         StopServerButton.IsEnabled = false;
         StatusTextBlock.Text = "Сервер остановлен.";
+        Log("Сервер остановлен, ресурсы освобождены.");
     }
 
     private void ClearDatabaseButton_Click(object sender, RoutedEventArgs e)
@@ -56,7 +67,7 @@ public partial class MainWindow : Window
         var barcodesToPrint = new List<string>();
         for (var i = 0; i < quantity; i++)
         {
-            var barcode = $"004466005944{_barcodeCounter:D7}9";
+            var barcode = $"{BarcodePrefix}{_barcodeCounter:D7}{BarcodeSuffix}";
             barcodesToPrint.Add(barcode);
             _barcodeCounter++;
         }
@@ -70,13 +81,9 @@ public partial class MainWindow : Window
 
     private void Window_Closing(object sender, CancelEventArgs e)
     {
-        SaveSettings();
-        _cancellationTokenSource?.Cancel();
-        _tcpServer?.Stop();
-        _tcpServer2?.Stop();
-        CleanupCamera();
-        SaveBarcodeCounter();
-        SaveReceivedCodesToFile();
         Log("Приложение закрывается...");
+        SaveSettings();
+        ShutdownServer();
+        SaveBarcodeCounter();
     }
 }

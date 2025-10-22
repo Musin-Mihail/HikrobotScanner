@@ -14,7 +14,9 @@ public partial class MainWindow
     private TcpListener _tcpServer;
     private TcpListener _tcpServer2;
     private CancellationTokenSource _cancellationTokenSource;
-    private string _firstCameraDataBuffer = null;
+
+    private string _camera1DataBuffer = null;
+    private string _camera2DataBuffer = null;
 
     /// <summary>
     /// Запускает TCP-сервер для прослушивания входящих данных от камер.
@@ -28,14 +30,17 @@ public partial class MainWindow
         }
 
         _cancellationTokenSource = new CancellationTokenSource();
+
         // Listener for Camera 1
         _tcpServer = new TcpListener(IPAddress.Any, port1);
         Task.Run(() => ListenForClients(_tcpServer, 1, _cancellationTokenSource.Token), _cancellationTokenSource.Token);
         Log($"Сервер для камеры 1 запущен. Ожидание данных на порту {port1}...");
+
         // Listener for Camera 2
         _tcpServer2 = new TcpListener(IPAddress.Any, port2);
         Task.Run(() => ListenForClients(_tcpServer2, 2, _cancellationTokenSource.Token), _cancellationTokenSource.Token);
         Log($"Сервер для камеры 2 запущен. Ожидание данных на порту {port2}...");
+
         StatusTextBlock.Text = $"Сервер слушает порты {port1} & {port2}";
     }
 
@@ -51,7 +56,7 @@ public partial class MainWindow
             {
                 var client = await server.AcceptTcpClientAsync(token);
                 Log($"Камера {cameraNumber} подключилась для отправки данных.");
-                _ = HandleClientComm(client, token);
+                _ = HandleClientTask(client, cameraNumber, token);
             }
         }
         catch (OperationCanceledException)
@@ -64,7 +69,10 @@ public partial class MainWindow
         }
         catch (Exception ex)
         {
-            Log($"Критическая ошибка сервера: {ex.Message}");
+            if (!token.IsCancellationRequested)
+            {
+                Log($"Критическая ошибка сервера (Камера {cameraNumber}): {ex.Message}");
+            }
         }
         finally
         {
@@ -74,9 +82,9 @@ public partial class MainWindow
     }
 
     /// <summary>
-    /// Обрабатывает входящие данные от подключенного клиента (камеры).
+    /// Обрабатывает входящие данные от подключенного клиента (камеры) в фоновом потоке.
     /// </summary>
-    private async Task HandleClientComm(TcpClient client, CancellationToken token)
+    private async Task HandleClientTask(TcpClient client, int cameraNumber, CancellationToken token)
     {
         try
         {
@@ -86,44 +94,63 @@ public partial class MainWindow
                 int bytesRead;
                 while (!token.IsCancellationRequested && (bytesRead = await stream.ReadAsync(buffer, 0, buffer.Length, token)) != 0)
                 {
-                    var receivedData = Encoding.UTF8.GetString(buffer, 0, bytesRead);
-                    lock (this)
-                    {
-                        if (_firstCameraDataBuffer == null)
-                        {
+                    var receivedData = Encoding.UTF8.GetString(buffer, 0, bytesRead).Trim();
 
-                            // Data from the first camera arrived
-                            _firstCameraDataBuffer = receivedData;
-                            Dispatcher.Invoke(() => { Code1camera.Text = receivedData.Trim(); });
-                            Log("Получены данные с первой камеры, ожидание данных со второй.");
-                        }
-                        else
-                        {
-                            // Data from the second camera arrived, process both
-                            Log("Получены данные со второй камеры, начинаю обработку.");
-                            Dispatcher.Invoke(() => { Code2camera.Text = receivedData.Trim(); });
-                            ProcessCombinedData(_firstCameraDataBuffer, receivedData);
-                            _firstCameraDataBuffer = null; // Reset buffer for the next pair
-                        }
-                    }
+                    Dispatcher.Invoke(() => OnDataReceived(cameraNumber, receivedData));
                 }
             }
         }
         catch (OperationCanceledException) { /* Игнорируем */ }
         catch (IOException ex) when (ex.InnerException is SocketException)
         {
-            Log("Соединение было принудительно разорвано.");
+            Log($"Соединение (Камера {cameraNumber}) было принудительно разорвано.");
         }
         catch (Exception ex)
         {
-            Log($"Ошибка при чтении данных: {ex.Message}");
+            Log($"Ошибка при чтении данных (Камера {cameraNumber}): {ex.Message}");
         }
         finally
         {
             client.Close();
-            Log("Камера отключилась.");
+            Log($"Камера {cameraNumber} отключилась.");
         }
     }
+
+    /// <summary>
+    /// Этот метод выполняется в UI-потоке и безопасно обрабатывает данные.
+    /// Он сохраняет данные в буфер и проверяет, получены ли данные от обеих камер.
+    /// </summary>
+    private void OnDataReceived(int cameraNumber, string data)
+    {
+        if (cameraNumber == 1)
+        {
+            _camera1DataBuffer = data;
+            Code1camera.Text = data;
+            Log("Получены данные с камеры 1.");
+        }
+        else // cameraNumber == 2
+        {
+            _camera2DataBuffer = data;
+            Code2camera.Text = data;
+            Log("Получены данные с камеры 2.");
+        }
+
+        // Проверяем, получены ли данные от ОБЕИХ камер
+        if (_camera1DataBuffer != null && _camera2DataBuffer != null)
+        {
+            Log("Получены данные с обеих камер, начинаю обработку.");
+
+            // Обрабатываем комбинированные данные
+            ProcessCombinedData(_camera1DataBuffer, _camera2DataBuffer);
+
+            // Очищаем буферы и UI для следующей пары
+            _camera1DataBuffer = null;
+            _camera2DataBuffer = null;
+            Code1camera.Text = "";
+            Code2camera.Text = "";
+        }
+    }
+
 
     /// <summary>
     /// Processes and validates data from both cameras.
@@ -131,7 +158,6 @@ public partial class MainWindow
     private void ProcessCombinedData(string data1, string data2)
     {
         var combinedData = $"{data1.Trim()}|{data2.Trim()}";
-
 
         var allParts = combinedData.Split(new[] { "|" }, StringSplitOptions.RemoveEmptyEntries);
 
@@ -173,13 +199,10 @@ public partial class MainWindow
         }
 
         int expectedPartsCount = 0;
-        Dispatcher.Invoke(() =>
+        if (ExpectedPartsComboBox.SelectedItem is ComboBoxItem selectedItem)
         {
-            if (ExpectedPartsComboBox.SelectedItem is ComboBoxItem selectedItem)
-            {
-                int.TryParse(selectedItem.Content.ToString(), out expectedPartsCount);
-            }
-        });
+            int.TryParse(selectedItem.Content.ToString(), out expectedPartsCount);
+        }
         if (expectedPartsCount == 0) expectedPartsCount = 6; // Default fallback
 
         var uniqueQrCodes = qrCodes.Distinct().ToList();
@@ -190,7 +213,6 @@ public partial class MainWindow
             return;
         }
 
-        // Success: save the codes
         var codesToSave = new List<string> { finalLinearCode };
         codesToSave.AddRange(uniqueQrCodes);
         var dataToSave = string.Join("|", codesToSave);

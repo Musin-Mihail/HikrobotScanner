@@ -9,16 +9,14 @@ namespace HikrobotScanner;
 /// </summary>
 public partial class MainWindow
 {
-    // Изменено для поддержки нескольких камер
     private readonly List<MyCamera> _cameras = [];
-    private bool AreCamerasConnected => _cameras.Count > 0;
 
     /// <summary>
     /// Инициализация и подключение к камерам.
     /// </summary>
     private void InitializeCamera()
     {
-        if (AreCamerasConnected)
+        if (_cameras.Count > 0)
         {
             Log("Камеры уже подключены.");
             return;
@@ -130,7 +128,7 @@ public partial class MainWindow
             _cameras.Add(camera);
         }
 
-        if (AreCamerasConnected)
+        if (_cameras.Count > 0)
         {
             Log($"Успешно подключено {_cameras.Count} камер(ы) через SDK.");
         }
@@ -146,7 +144,7 @@ public partial class MainWindow
     /// </summary>
     private void CleanupCamera()
     {
-        if (!AreCamerasConnected) return;
+        if (_cameras.Count == 0) return;
 
         Log("Освобождение ресурсов камер...");
         foreach (var camera in _cameras)
@@ -155,7 +153,7 @@ public partial class MainWindow
             camera.MV_CC_CloseDevice_NET();
             camera.MV_CC_DestroyDevice_NET();
         }
-        _cameras.Clear(); // Очищаем список после освобождения ресурсов
+        _cameras.Clear();
         Log("Все камеры отключены и ресурсы освобождены.");
     }
 }

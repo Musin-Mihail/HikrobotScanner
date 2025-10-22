@@ -21,13 +21,16 @@ public partial class MainWindow
 
     private void ShowError(string message)
     {
-        Dispatcher.Invoke(() =>
+        if (!Dispatcher.CheckAccess())
         {
-            MessageBox.Show(this,
-                $"{message}",
-                "Ошибка сканирования",
-                MessageBoxButton.OK,
-                     MessageBoxImage.Warning);
-        });
+            Dispatcher.Invoke(() => ShowError(message));
+            return;
+        }
+
+        MessageBox.Show(this,
+            $"{message}",
+            "Ошибка сканирования",
+            MessageBoxButton.OK,
+            MessageBoxImage.Warning);
     }
 }
