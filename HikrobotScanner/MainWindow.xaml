@@ -3,10 +3,16 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:viewModels="clr-namespace:HikrobotScanner.ViewModels"
         mc:Ignorable="d"
-        Title="Hikrobot ID5000 Controller" Height="850" Width="700"
+        Title="Hikrobot ID5000 Controller (MVVM)" Height="850" Width="700"
         WindowStartupLocation="CenterScreen"
         Closing="Window_Closing">
+
+    <Window.DataContext>
+        <viewModels:MainViewModel />
+    </Window.DataContext>
+
     <Grid Margin="15">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
@@ -38,38 +44,38 @@
                 </Grid.ColumnDefinitions>
 
                 <Label Content="IP камеры 1:" Grid.Row="0" Grid.Column="0" VerticalAlignment="Center" />
-                <TextBox x:Name="CameraIpTextBox" Text="192.168.1.20" Grid.Row="0" Grid.Column="1" Margin="5" VerticalAlignment="Center" />
+                <TextBox Text="{Binding Settings.CameraIp, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Grid.Row="0" Grid.Column="1" Margin="5" VerticalAlignment="Center" />
 
                 <Label Content="Порт команд 1 (триггер):" Grid.Row="0" Grid.Column="2" VerticalAlignment="Center" />
-                <TextBox x:Name="TriggerPortTextBox" Text="2001" Grid.Row="0" Grid.Column="3" Margin="5" VerticalAlignment="Center" />
+                <TextBox Text="{Binding Settings.TriggerPort, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Grid.Row="0" Grid.Column="3" Margin="5" VerticalAlignment="Center" />
 
                 <Label Content="Локальный порт 1 (прием):" Grid.Row="1" Grid.Column="2" VerticalAlignment="Center" />
-                <TextBox x:Name="ListenPortTextBox" Text="5000" Grid.Row="1" Grid.Column="3" Margin="5" VerticalAlignment="Center" />
+                <TextBox Text="{Binding Settings.ListenPort, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Grid.Row="1" Grid.Column="3" Margin="5" VerticalAlignment="Center" />
 
                 <Label Content="Ожидаемое кол-во QR кодов:" Grid.Row="2" Grid.Column="0" VerticalAlignment="Center" />
-                <ComboBox x:Name="ExpectedPartsComboBox" Grid.Row="2" Grid.Column="1" Margin="5" VerticalAlignment="Center" SelectedIndex="0">
+                <ComboBox SelectedIndex="{Binding Settings.ExpectedPartsIndex, Mode=TwoWay}" Grid.Row="2" Grid.Column="1" Margin="5" VerticalAlignment="Center">
                     <ComboBoxItem Content="6" />
                     <ComboBoxItem Content="8" />
                 </ComboBox>
 
                 <Label Content="Профиль настроек камеры 1:" Grid.Row="2" Grid.Column="2" VerticalAlignment="Center" />
-                <ComboBox x:Name="UserSetComboBox" Grid.Row="2" Grid.Column="3" Margin="5" VerticalAlignment="Center" SelectedIndex="2">
+                <ComboBox SelectedIndex="{Binding Settings.UserSetIndex, Mode=TwoWay}" Grid.Row="2" Grid.Column="3" Margin="5" VerticalAlignment="Center">
                     <ComboBoxItem Content="UserSet1" />
                     <ComboBoxItem Content="UserSet2" />
                     <ComboBoxItem Content="UserSet3" />
                 </ComboBox>
 
                 <Label Content="IP камеры 2:" Grid.Row="3" Grid.Column="0" VerticalAlignment="Center" />
-                <TextBox x:Name="CameraIpTextBox2" Text="192.168.1.21" Grid.Row="3" Grid.Column="1" Margin="5" VerticalAlignment="Center" />
+                <TextBox Text="{Binding Settings.CameraIp2, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Grid.Row="3" Grid.Column="1" Margin="5" VerticalAlignment="Center" />
 
                 <Label Content="Порт команд 2 (триггер):" Grid.Row="3" Grid.Column="2" VerticalAlignment="Center" />
-                <TextBox x:Name="TriggerPortTextBox2" Text="2002" Grid.Row="3" Grid.Column="3" Margin="5" VerticalAlignment="Center" />
+                <TextBox Text="{Binding Settings.TriggerPort2, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Grid.Row="3" Grid.Column="3" Margin="5" VerticalAlignment="Center" />
 
                 <Label Content="Локальный порт 2 (прием):" Grid.Row="4" Grid.Column="2" VerticalAlignment="Center" />
-                <TextBox x:Name="ListenPortTextBox2" Text="5001" Grid.Row="4" Grid.Column="3" Margin="5" VerticalAlignment="Center" />
+                <TextBox Text="{Binding Settings.ListenPort2, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Grid.Row="4" Grid.Column="3" Margin="5" VerticalAlignment="Center" />
 
                 <Label Content="Профиль настроек камеры 2:" Grid.Row="5" Grid.Column="2" VerticalAlignment="Center" />
-                <ComboBox x:Name="UserSetComboBox2" Grid.Row="5" Grid.Column="3" Margin="5" VerticalAlignment="Center" SelectedIndex="2">
+                <ComboBox SelectedIndex="{Binding Settings.UserSetIndex2, Mode=TwoWay}" Grid.Row="5" Grid.Column="3" Margin="5" VerticalAlignment="Center">
                     <ComboBoxItem Content="UserSet1" />
                     <ComboBoxItem Content="UserSet2" />
                     <ComboBoxItem Content="UserSet3" />
@@ -79,36 +85,36 @@
 
         <GroupBox Header="Управление и Результат" Grid.Row="1" Grid.Column="0" Padding="10">
             <StackPanel>
-                <Button x:Name="StartServerButton" Content="Старт сервера" Click="StartServerButton_Click" Margin="5" Padding="10,5" />
-                <Button x:Name="StopServerButton" Content="Стоп сервера" Click="StopServerButton_Click" Margin="5" Padding="10,5" IsEnabled="False" />
-                <Button x:Name="ClearDatabaseButton" Content="Очистить базу данных" Click="ClearDatabaseButton_Click" Margin="5" Padding="10,5" />
+                <Button Content="Старт сервера" Command="{Binding StartServerCommand}" IsEnabled="{Binding IsServerStopped}" Margin="5" Padding="10,5" />
+                <Button Content="Стоп сервера" Command="{Binding StopServerCommand}" IsEnabled="{Binding IsServerRunning}" Margin="5" Padding="10,5" />
+                <Button Content="Очистить базу данных" Command="{Binding ClearDatabaseCommand}" Margin="5" Padding="10,5" />
             </StackPanel>
         </GroupBox>
 
         <GroupBox Header="Данные с первой камеры" Grid.Row="2" Grid.Column="0" Padding="10">
-            <TextBox x:Name="Code1camera" IsReadOnly="True" MinHeight="80" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" Background="#f0f0f0" />
+            <TextBox Text="{Binding Camera1Data, Mode=OneWay}" IsReadOnly="True" MinHeight="80" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" Background="#f0f0f0" />
         </GroupBox>
         <GroupBox Header="Данные со вторая камеры" Grid.Row="2" Grid.Column="1" Padding="10">
-            <TextBox x:Name="Code2camera" IsReadOnly="True" MinHeight="80" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" Background="#f0f0f0" />
+            <TextBox Text="{Binding Camera2Data, Mode=OneWay}" IsReadOnly="True" MinHeight="80" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" Background="#f0f0f0" />
         </GroupBox>
 
         <GroupBox Header="Генерация кодов" Grid.Row="1" Grid.Column="1" Padding="10">
             <StackPanel>
                 <Label Content="Следующий номер кода:" />
-                <TextBlock x:Name="CounterTextBlock" Text="0000001" FontWeight="Bold" Margin="5,0,5,10" FontSize="14" />
+                <TextBlock Text="{Binding BarcodeCounterDisplay, Mode=OneWay}" FontWeight="Bold" Margin="5,0,5,10" FontSize="14" />
                 <Label Content="Количество для генерации:" />
-                <TextBox x:Name="QuantityTextBox" Text="10" Margin="5,0,5,5" />
-                <Button x:Name="GenerateButton" Content="Сгенерировать и напечатать" Click="GenerateButton_Click" Margin="5" Padding="10,5" />
+                <TextBox Text="{Binding BarcodeQuantity, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Margin="5,0,5,5" />
+                <Button Content="Сгенерировать и напечатать" Command="{Binding GenerateBarcodesCommand}" Margin="5" Padding="10,5" />
             </StackPanel>
         </GroupBox>
 
         <GroupBox Header="Лог событий" Grid.Row="3" Grid.Column="0" Grid.ColumnSpan="2" Padding="10">
-            <TextBox x:Name="LogTextBox" IsReadOnly="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" Background="#f0f0f0" />
+            <TextBox Text="{Binding LogText, Mode=OneWay}" IsReadOnly="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" Background="#f0f0f0" />
         </GroupBox>
 
         <StatusBar Grid.Row="4" Grid.Column="0" Grid.ColumnSpan="2">
             <StatusBarItem>
-                <TextBlock x:Name="StatusTextBlock" Text="Сервер не запущен." />
+                <TextBlock Text="{Binding StatusText, Mode=OneWay}" />
             </StatusBarItem>
         </StatusBar>
     </Grid>
