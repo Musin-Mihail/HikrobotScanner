@@ -1,24 +1,25 @@
-﻿using System.IO;
+﻿using HikrobotScanner.Interfaces;
+using System.IO;
 
 namespace HikrobotScanner.Services
 {
     /// <summary>
     /// Сервис для сохранения данных в файл.
     /// </summary>
-    public class DataService
+    public class DataService : IDataService
     {
-        private readonly Action<string> _logCallback;
+        private readonly IAppLogger _logger;
 
-        public DataService(Action<string> logCallback)
+        public DataService(IAppLogger logger)
         {
-            _logCallback = logCallback;
+            _logger = logger;
         }
 
         public void SaveReceivedCodesToFile(List<string> receivedCodes)
         {
             if (receivedCodes.Count == 0)
             {
-                Log("Нет полученных кодов для сохранения.");
+                _logger.Log("Нет полученных кодов для сохранения.");
                 return;
             }
 
@@ -29,17 +30,12 @@ namespace HikrobotScanner.Services
                 var filePath = Path.Combine(directory, fileName);
 
                 File.WriteAllLines(filePath, receivedCodes);
-                Log($"Сохранено {receivedCodes.Count} кодов в файл: {filePath}");
+                _logger.Log($"Сохранено {receivedCodes.Count} кодов в файл: {filePath}");
             }
             catch (Exception ex)
             {
-                Log($"Ошибка сохранения файла: {ex.Message}");
+                _logger.Log($"Ошибка сохранения файла: {ex.Message}");
             }
-        }
-
-        private void Log(string message)
-        {
-            _logCallback?.Invoke(message);
         }
     }
 }

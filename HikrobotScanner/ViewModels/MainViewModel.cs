@@ -1,77 +1,60 @@
-﻿using HikrobotScanner.Properties;
-using HikrobotScanner.Services;
-using System.Text;
+﻿using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.Input;
+using HikrobotScanner.Interfaces;
+using HikrobotScanner.Properties;
 using System.Windows;
-using System.Windows.Input;
 
 namespace HikrobotScanner.ViewModels
 {
     /// <summary>
-    /// Основная ViewModel. Содержит всю логику приложения и его состояние.
+    /// Основная ViewModel. Теперь использует CommunityToolkit.Mvvm (ObservableObject)
+    /// и получает все зависимости (сервисы) через конструктор (DI).
     /// </summary>
-    public class MainViewModel : ViewModelBase
+    public partial class MainViewModel : ObservableObject
     {
-        #region Сервисы
-        private readonly CameraService _cameraService;
-        private readonly ServerService _serverService;
-        private readonly BarcodeService _barcodeService;
-        private readonly DataService _dataService;
-        private readonly SettingsService _settingsService;
+        #region Сервисы (получены через DI)
+        private readonly ICameraService _cameraService;
+        private readonly IServerService _serverService;
+        private readonly IBarcodeService _barcodeService;
+        private readonly IDataService _dataService;
+        private readonly ISettingsService _settingsService;
+        private readonly IAppLogger _logger;
+        private readonly IDispatcherService _dispatcher;
         #endregion
 
         #region Свойства состояния (State)
 
+        // [ObservableProperty] автоматически создает public свойство "Settings"
+        // с вызовом OnPropertyChanged
+        [ObservableProperty]
         private Settings _settings;
 
-        public Settings Settings
-        {
-            get => _settings;
-            set => SetProperty(ref _settings, value);
-        }
-
+        [ObservableProperty]
         private string _logText;
-        public string LogText
-        {
-            get => _logText;
-            set => SetProperty(ref _logText, value);
-        }
 
+        [ObservableProperty]
         private string _statusText = "Сервер не запущен.";
-        public string StatusText
-        {
-            get => _statusText;
-            set => SetProperty(ref _statusText, value);
-        }
 
+        [ObservableProperty]
         private string _camera1Data;
-        public string Camera1Data
-        {
-            get => _camera1Data;
-            set => SetProperty(ref _camera1Data, value);
-        }
 
+        [ObservableProperty]
         private string _camera2Data;
-        public string Camera2Data
-        {
-            get => _camera2Data;
-            set => SetProperty(ref _camera2Data, value);
-        }
 
+        [ObservableProperty]
         private int _barcodeQuantity = 10;
-        public int BarcodeQuantity
-        {
-            get => _barcodeQuantity;
-            set => SetProperty(ref _barcodeQuantity, value);
-        }
 
+        // Для этого свойства нам нужна кастомная логика
         private long _barcodeCounter;
         public long BarcodeCounter
         {
             get => _barcodeCounter;
             set
             {
+                // Используем SetProperty из ObservableObject
                 if (SetProperty(ref _barcodeCounter, value))
                 {
+                    // Вызываем OnPropertyChanged для зависимого свойства
                     OnPropertyChanged(nameof(BarcodeCounterDisplay));
                 }
             }
@@ -79,20 +62,12 @@ namespace HikrobotScanner.ViewModels
 
         public string BarcodeCounterDisplay => _barcodeCounter.ToString("D7");
 
+        [ObservableProperty]
+        // [NotifyCanExecuteChangedFor] автоматически вызывает .NotifyCanExecuteChanged()
+        // для указанных команд при изменении этого свойства.
+        [NotifyCanExecuteChangedFor(nameof(StartServerCommand))]
+        [NotifyCanExecuteChangedFor(nameof(StopServerCommand))]
         private bool _isServerRunning;
-        public bool IsServerRunning
-        {
-            get => _isServerRunning;
-            set
-            {
-                if (SetProperty(ref _isServerRunning, value))
-                {
-                    OnPropertyChanged(nameof(IsServerStopped));
-                    (StartServerCommand as RelayCommand)?.RaiseCanExecuteChanged();
-                    (StopServerCommand as RelayCommand)?.RaiseCanExecuteChanged();
-                }
-            }
-        }
 
         public bool IsServerStopped => !IsServerRunning;
 
@@ -100,56 +75,55 @@ namespace HikrobotScanner.ViewModels
         private string _camera1DataBuffer = null;
         private string _camera2DataBuffer = null;
 
-        // Потокобезопасная коллекция для логов
-        private readonly StringBuilder _logBuilder = new StringBuilder();
-
         // Список полученных кодов
         private readonly List<string> _receivedCodes = new List<string>();
 
         #endregion
 
-        #region Команды (Commands)
-        public ICommand StartServerCommand { get; }
-        public ICommand StopServerCommand { get; }
-        public ICommand ClearDatabaseCommand { get; }
-        public ICommand GenerateBarcodesCommand { get; }
-        #endregion
-
-        #region Конструктор
-        public MainViewModel()
+        #region Конструктор (Внедрение зависимостей)
+        public MainViewModel(
+            ICameraService cameraService,
+            IServerService serverService,
+            IBarcodeService barcodeService,
+            IDataService dataService,
+            ISettingsService settingsService,
+            IAppLogger logger,
+            IDispatcherService dispatcher)
         {
-            // Инициализация сервисов
-            _settingsService = new SettingsService();
-            _dataService = new DataService(Log);
-            _barcodeService = new BarcodeService(Log, ShowError);
-            _cameraService = new CameraService(Log);
-            _serverService = new ServerService(Log, OnDataReceivedFromService);
+            // Сохраняем все внедренные сервисы
+            _cameraService = cameraService;
+            _serverService = serverService;
+            _barcodeService = barcodeService;
+            _dataService = dataService;
+            _settingsService = settingsService;
+            _logger = logger;
+            _dispatcher = dispatcher;
 
-            // Инициализация команд
-            StartServerCommand = new RelayCommand(ExecuteStartServer, CanExecuteStartServer);
-            StopServerCommand = new RelayCommand(ExecuteStopServer, CanExecuteStopServer);
-            ClearDatabaseCommand = new RelayCommand(ExecuteClearDatabase);
-            GenerateBarcodesCommand = new RelayCommand(ExecuteGenerateBarcodes);
+            // Настраиваем колбэки и подписки
+            _serverService.DataReceivedCallback = OnDataReceivedFromService;
+            _logger.LogUpdated += (logText) => _dispatcher.InvokeOnUIThread(() => LogText = logText);
 
             // Загрузка состояния
             LoadApplicationState();
         }
         #endregion
 
-        #region Логика команд
+        #region Команды (Commands)
 
-        private bool CanExecuteStartServer(object obj) => IsServerStopped;
-        private void ExecuteStartServer(object obj)
+        // [RelayCommand] атрибут автоматически создает IRelayCommand
+        // с именем "StartServerCommand"
+        [RelayCommand(CanExecute = nameof(CanStartServer))]
+        private void StartServer()
         {
-            Log("Запуск сервера и инициализация камер...");
+            _logger.Log("Запуск сервера и инициализация камер...");
 
-            // Получаем актуальные профили из настроек
             string userSet1 = $"UserSet{Settings.UserSetIndex + 1}";
             string userSet2 = $"UserSet{Settings.UserSetIndex2 + 1}";
 
             if (!int.TryParse(Settings.ListenPort, out int port1) || !int.TryParse(Settings.ListenPort2, out int port2))
             {
-                Log($"Ошибка: Неверный формат портов в настройках ('{Settings.ListenPort}', '{Settings.ListenPort2}'). Сервер не запущен.");
+                string errorMsg = $"Ошибка: Неверный формат портов в настройках ('{Settings.ListenPort}', '{Settings.ListenPort2}'). Сервер не запущен.";
+                _logger.Log(errorMsg);
                 ShowError("Один или оба порта для прослушивания указаны неверно. Проверьте настройки.", "Ошибка настроек");
                 return;
             }
@@ -160,21 +134,25 @@ namespace HikrobotScanner.ViewModels
             IsServerRunning = true;
             StatusText = $"Сервер слушает порты {port1} & {port2}";
         }
+        private bool CanStartServer() => IsServerStopped;
 
-        private bool CanExecuteStopServer(object obj) => IsServerRunning;
-        private void ExecuteStopServer(object obj)
+        [RelayCommand(CanExecute = nameof(CanStopServer))]
+        private void StopServer()
         {
-            Log("Остановка сервера...");
+            _logger.Log("Остановка сервера...");
             ShutdownServer();
         }
+        private bool CanStopServer() => IsServerRunning;
 
-        private void ExecuteClearDatabase(object obj)
+        [RelayCommand]
+        private void ClearDatabase()
         {
             _receivedCodes.Clear();
-            Log("База данных (в памяти) очищена.");
+            _logger.Log("База данных (в памяти) очищена.");
         }
 
-        private void ExecuteGenerateBarcodes(object obj)
+        [RelayCommand]
+        private void GenerateBarcodes()
         {
             if (BarcodeQuantity <= 0)
             {
@@ -182,13 +160,23 @@ namespace HikrobotScanner.ViewModels
                 return;
             }
 
-            Log($"Генерация {BarcodeQuantity} штрих-кодов...");
-            var (success, nextCounter) = _barcodeService.GenerateAndPrintBarcodes(BarcodeCounter, BarcodeQuantity);
-
-            if (success)
+            _logger.Log($"Генерация {BarcodeQuantity} штрих-кодов...");
+            try
             {
-                BarcodeCounter = nextCounter;
-                _barcodeService.SaveCounter(BarcodeCounter);
+                // Теперь мы отлавливаем исключение, которое может прийти из BarcodeService
+                var (success, nextCounter) = _barcodeService.GenerateAndPrintBarcodes(BarcodeCounter, BarcodeQuantity);
+
+                if (success)
+                {
+                    BarcodeCounter = nextCounter;
+                    _barcodeService.SaveCounter(BarcodeCounter);
+                }
+            }
+            catch (Exception ex)
+            {
+                // ViewModel отвечает за отображение ошибки пользователю
+                _logger.Log($"Критическая ошибка печати: {ex.Message}");
+                ShowError($"Не удалось выполнить печать. Убедитесь, что принтер подключен и готов.\n\nОшибка: {ex.Message}", "Ошибка печати");
             }
         }
 
@@ -201,29 +189,27 @@ namespace HikrobotScanner.ViewModels
         /// </summary>
         private void OnDataReceivedFromService(int cameraNumber, string data)
         {
-            // Используем Application.Current.Dispatcher для безопасного обновления UI
-            Application.Current.Dispatcher.Invoke(() =>
+            // Используем IDispatcherService для безопасного обновления UI
+            _dispatcher.InvokeOnUIThread(() =>
             {
                 if (cameraNumber == 1)
                 {
                     _camera1DataBuffer = data;
-                    Camera1Data = data; // Обновляем свойство для UI
-                    Log("Получены данные с камеры 1.");
+                    Camera1Data = data; // Обновляем свойство (автоматически вызовет OnPropertyChanged)
+                    _logger.Log("Получены данные с камеры 1.");
                 }
                 else // cameraNumber == 2
                 {
                     _camera2DataBuffer = data;
-                    Camera2Data = data; // Обновляем свойство для UI
-                    Log("Получены данные с камеры 2.");
+                    Camera2Data = data; // Обновляем свойство
+                    _logger.Log("Получены данные с камеры 2.");
                 }
 
-                // Проверяем, получены ли данные от ОБЕИХ камер
                 if (_camera1DataBuffer != null && _camera2DataBuffer != null)
                 {
-                    Log("Получены данные с обеих камер, начинаю обработку.");
+                    _logger.Log("Получены данные с обеих камер, начинаю обработку.");
                     ProcessCombinedData(_camera1DataBuffer, _camera2DataBuffer);
 
-                    // Очищаем буферы и UI для следующей пары
                     _camera1DataBuffer = null;
                     _camera2DataBuffer = null;
                     Camera1Data = "";
@@ -233,7 +219,7 @@ namespace HikrobotScanner.ViewModels
         }
 
         /// <summary>
-        /// Вся бизнес-логика проверки кодов теперь находится здесь.
+        /// Вся бизнес-логика проверки кодов
         /// </summary>
         private void ProcessCombinedData(string data1, string data2)
         {
@@ -258,14 +244,14 @@ namespace HikrobotScanner.ViewModels
             var uniqueLinearCodes = linearCodes.Distinct().ToList();
             if (uniqueLinearCodes.Count == 0)
             {
-                Log("Ошибка: Линейный штрих-код не найден.");
+                _logger.Log("Ошибка: Линейный штрих-код не найден.");
                 ShowError("Линейный штрих-код не найден.", "Ошибка сканирования");
                 return;
             }
 
             if (uniqueLinearCodes.Count > 1)
             {
-                Log("Ошибка: Найдено несколько разных линейных штрих-кодов.");
+                _logger.Log("Ошибка: Найдено несколько разных линейных штрих-кодов.");
                 ShowError("Найдено несколько разных линейных штрих-кодов.", "Ошибка сканирования");
                 return;
             }
@@ -273,17 +259,16 @@ namespace HikrobotScanner.ViewModels
             var finalLinearCode = uniqueLinearCodes.Single();
             if (_receivedCodes.Any(c => c.StartsWith(finalLinearCode + "|")))
             {
-                Log($"Штрих-код {finalLinearCode} уже сохранен.");
+                _logger.Log($"Штрих-код {finalLinearCode} уже сохранен.");
                 return;
             }
 
-            // Получаем ожидаемое кол-во из настроек
             int expectedPartsCount = Settings.ExpectedPartsIndex == 0 ? 6 : 8;
 
             var uniqueQrCodes = qrCodes.Distinct().ToList();
             if (uniqueQrCodes.Count < expectedPartsCount)
             {
-                Log($"Ошибка: Количество QR-кодов ({uniqueQrCodes.Count}) меньше ожидаемого ({expectedPartsCount}).");
+                _logger.Log($"Ошибка: Количество QR-кодов ({uniqueQrCodes.Count}) меньше ожидаемого ({expectedPartsCount}).");
                 ShowError($"Недостаточно QR-кодов (Найдено: {uniqueQrCodes.Count}, Ожидалось: {expectedPartsCount}).", "Ошибка сканирования");
                 return;
             }
@@ -293,76 +278,53 @@ namespace HikrobotScanner.ViewModels
             var dataToSave = string.Join("|", codesToSave);
 
             _receivedCodes.Add(dataToSave);
-            Log($"Код успешно обработан и сохранен: {finalLinearCode}");
+            _logger.Log($"Код успешно обработан и сохранен: {finalLinearCode}");
         }
 
         #endregion
 
-        #region Вспомогательные методы (Логирование, Ошибки)
-
-        /// <summary>
-        /// Безопасный для потоков метод логирования.
-        /// </summary>
-        private void Log(string message)
-        {
-            // Если мы не в UI-потоке, делаем Invoke
-            if (!Application.Current.Dispatcher.CheckAccess())
-            {
-                Application.Current.Dispatcher.Invoke(() => Log(message));
-                return;
-            }
-
-            _logBuilder.AppendLine($"[{DateTime.Now:HH:mm:ss}] {message}");
-            LogText = _logBuilder.ToString(); // Обновляем свойство, привязанное к UI
-        }
+        #region Вспомогательные методы (Ошибки)
 
         /// <summary>
         /// Отображение окна с ошибкой.
+        /// Этот метод должен быть в UI-слое (ViewModel), а не в сервисах.
         /// </summary>
         private void ShowError(string message, string title)
         {
-            if (!Application.Current.Dispatcher.CheckAccess())
+            // Мы должны быть в UI-потоке, чтобы показать MessageBox
+            _dispatcher.InvokeOnUIThread(() =>
             {
-                Application.Current.Dispatcher.Invoke(() => ShowError(message, title));
-                return;
-            }
-
-            MessageBox.Show(Application.Current.MainWindow,
-                message,
-                title,
-                MessageBoxButton.OK,
-                MessageBoxImage.Warning);
+                MessageBox.Show(Application.Current.MainWindow,
+                    message,
+                    title,
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Warning);
+            });
         }
 
         #endregion
 
         #region Управление жизненным циклом
 
-        /// <summary>
-        /// Загружает начальное состояние приложения.
-        /// </summary>
         private void LoadApplicationState()
         {
             Settings = _settingsService.LoadSettings();
-            Log("Настройки загружены.");
+            _logger.Log("Настройки загружены.");
             BarcodeCounter = _barcodeService.LoadCounter();
-            Log($"Счетчик штрих-кодов загружен: {BarcodeCounter}");
+            _logger.Log($"Счетчик штрих-кодов загружен: {BarcodeCounter}");
         }
 
-        /// <summary>
-        /// Выполняет всю логику остановки и сохранения.
-        /// </summary>
         private void ShutdownServer()
         {
             _serverService.Stop();
             _cameraService.Cleanup();
 
             _dataService.SaveReceivedCodesToFile(_receivedCodes);
-            _receivedCodes.Clear(); // Очищаем после сохранения
+            _receivedCodes.Clear();
 
             IsServerRunning = false;
             StatusText = "Сервер остановлен.";
-            Log("Сервер остановлен, ресурсы освобождены.");
+            _logger.Log("Сервер остановлен, ресурсы освобождены.");
         }
 
         /// <summary>
@@ -370,17 +332,16 @@ namespace HikrobotScanner.ViewModels
         /// </summary>
         public void OnWindowClosing()
         {
-            Log("Приложение закрывается...");
+            _logger.Log("Приложение закрывается...");
             if (IsServerRunning)
             {
                 ShutdownServer();
             }
             _settingsService.SaveSettings(Settings);
             _barcodeService.SaveCounter(BarcodeCounter);
-            Log("Настройки и счетчик сохранены. Выход.");
+            _logger.Log("Настройки и счетчик сохранены. Выход.");
         }
 
         #endregion
     }
 }
-

@@ -1,4 +1,5 @@
-﻿using System.IO;
+﻿using HikrobotScanner.Interfaces;
+using System.IO;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Documents;
@@ -11,22 +12,21 @@ using ZXing.Rendering;
 namespace HikrobotScanner.Services
 {
     /// <summary>
-    /// Сервис, отвечающий за все операции со штрих-кодами:
-    /// генерация, печать, управление счетчиком.
+    /// Сервис, отвечающий за все операции со штрих-кодами.
+    /// Теперь реализует IBarcodeService и использует IAppLogger.
     /// </summary>
-    public class BarcodeService
+    public class BarcodeService : IBarcodeService
     {
         private const string CounterFileName = "barcode_counter.txt";
         private const string BarcodePrefix = "004466005944";
         private const string BarcodeSuffix = "9";
 
-        private readonly Action<string> _logCallback;
-        private readonly Action<string, string> _showErrorCallback;
+        private readonly IAppLogger _logger;
 
-        public BarcodeService(Action<string> logCallback, Action<string, string> showErrorCallback)
+        // Сервис теперь зависит от абстракций (IAppLogger), а не от колбэков
+        public BarcodeService(IAppLogger logger)
         {
-            _logCallback = logCallback;
-            _showErrorCallback = showErrorCallback;
+            _logger = logger;
         }
 
         public long LoadCounter()
@@ -42,7 +42,7 @@ namespace HikrobotScanner.Services
             }
             catch (Exception ex)
             {
-                Log($"Ошибка загрузки счетчика: {ex.Message}");
+                _logger.Log($"Ошибка загрузки счетчика: {ex.Message}");
             }
             return 1; // Возвращаем 1 по умолчанию
         }
@@ -55,7 +55,7 @@ namespace HikrobotScanner.Services
             }
             catch (Exception ex)
             {
-                Log($"Ошибка сохранения счетчика: {ex.Message}");
+                _logger.Log($"Ошибка сохранения счетчика: {ex.Message}");
             }
         }
 
@@ -75,8 +75,10 @@ namespace HikrobotScanner.Services
                 currentCounter++;
             }
 
-            Log($"Сгенерировано {barcodesToPrint.Count} кодов. Следующий код начнется с номера {currentCounter}.");
+            _logger.Log($"Сгенерировано {barcodesToPrint.Count} кодов. Следующий код начнется с номера {currentCounter}.");
 
+            // Метод PrintBarcodes теперь может выбросить исключение,
+            // MainViewModel будет отвечать за его обработку (try-catch)
             bool printSuccess = PrintBarcodes(barcodesToPrint);
 
             return (printSuccess, currentCounter);
@@ -87,7 +89,7 @@ namespace HikrobotScanner.Services
             var printDialog = new PrintDialog();
             if (printDialog.ShowDialog() != true)
             {
-                Log("Печать отменена пользователем.");
+                _logger.Log("Печать отменена пользователем.");
                 return false;
             }
 
@@ -117,16 +119,16 @@ namespace HikrobotScanner.Services
 
             try
             {
-                Log("Отправка документа на печать...");
+                _logger.Log("Отправка документа на печать...");
                 printDialog.PrintDocument(((IDocumentPaginatorSource)doc).DocumentPaginator, $"Печать {barcodes.Count} штрих-кодов");
-                Log("Документ отправлен на принтер.");
+                _logger.Log("Документ отправлен на принтер.");
                 return true;
             }
             catch (Exception ex)
             {
-                Log($"Ошибка печати: {ex.Message}");
-                _showErrorCallback($"Не удалось отправить документ на печать. Ошибка: {ex.Message}", "Ошибка печати");
-                return false;
+                _logger.Log($"Ошибка печати: {ex.Message}");
+                // Вместо вызова ShowError, мы "пробрасываем" исключение наверх
+                throw new InvalidOperationException($"Не удалось отправить документ на печать. Ошибка: {ex.Message}", ex);
             }
         }
 
@@ -135,11 +137,6 @@ namespace HikrobotScanner.Services
             var wpfBitmap = new WriteableBitmap(pixelData.Width, pixelData.Height, 96, 96, PixelFormats.Bgr32, null);
             wpfBitmap.WritePixels(new Int32Rect(0, 0, pixelData.Width, pixelData.Height), pixelData.Pixels, pixelData.Width * 4, 0);
             return wpfBitmap;
-        }
-
-        private void Log(string message)
-        {
-            _logCallback?.Invoke(message);
         }
     }
 }

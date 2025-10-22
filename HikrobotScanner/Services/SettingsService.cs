@@ -1,4 +1,5 @@
-﻿using HikrobotScanner.Properties;
+﻿using HikrobotScanner.Interfaces;
+using HikrobotScanner.Properties;
 
 namespace HikrobotScanner.Services
 {
@@ -6,9 +7,9 @@ namespace HikrobotScanner.Services
     /// Сервис для управления настройками приложения.
     /// Он инкапсулирует логику работы с Properties.Settings.Default.
     /// 
-    /// Класс сделан 'internal', чтобы соответствовать 'internal' классу Settings.
+    /// Класс теперь public, чтобы его можно было внедрить через DI.
     /// </summary>
-    internal class SettingsService
+    public class SettingsService : ISettingsService
     {
         public Settings LoadSettings()
         {
@@ -21,4 +22,3 @@ namespace HikrobotScanner.Services
         }
     }
 }
-

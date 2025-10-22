@@ -121,18 +121,6 @@ namespace HikrobotScanner.Properties {
         
         [global::System.Configuration.UserScopedSettingAttribute()]
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
-        [global::System.Configuration.DefaultSettingValueAttribute("0")]
-        public int ExpectedPartsIndex2 {
-            get {
-                return ((int)(this["ExpectedPartsIndex2"]));
-            }
-            set {
-                this["ExpectedPartsIndex2"] = value;
-            }
-        }
-        
-        [global::System.Configuration.UserScopedSettingAttribute()]
-        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
         [global::System.Configuration.DefaultSettingValueAttribute("2")]
         public int UserSetIndex2 {
             get {

@@ -1,4 +1,5 @@
-﻿using System.IO;
+﻿using HikrobotScanner.Interfaces;
+using System.IO;
 using System.Net;
 using System.Net.Sockets;
 using System.Text;
@@ -8,19 +9,20 @@ namespace HikrobotScanner.Services
     /// <summary>
     /// Сервис, инкапсулирующий логику TCP-сервера для приема данных.
     /// </summary>
-    public class ServerService
+    public class ServerService : IServerService
     {
-        private readonly Action<string> _logCallback;
-        private readonly Action<int, string> _dataReceivedCallback;
+        private readonly IAppLogger _logger;
+
+        // Колбэк теперь устанавливается извне (из MainViewModel)
+        public Action<int, string> DataReceivedCallback { get; set; }
 
         private TcpListener _tcpServer1;
         private TcpListener _tcpServer2;
         private CancellationTokenSource _cancellationTokenSource;
 
-        public ServerService(Action<string> logCallback, Action<int, string> dataReceivedCallback)
+        public ServerService(IAppLogger logger)
         {
-            _logCallback = logCallback;
-            _dataReceivedCallback = dataReceivedCallback;
+            _logger = logger;
         }
 
         /// <summary>
@@ -33,12 +35,12 @@ namespace HikrobotScanner.Services
             // Listener for Camera 1
             _tcpServer1 = new TcpListener(IPAddress.Any, port1);
             Task.Run(() => ListenForClients(_tcpServer1, 1, _cancellationTokenSource.Token), _cancellationTokenSource.Token);
-            Log($"Сервер для камеры 1 запущен. Ожидание данных на порту {port1}...");
+            _logger.Log($"Сервер для камеры 1 запущен. Ожидание данных на порту {port1}...");
 
             // Listener for Camera 2
             _tcpServer2 = new TcpListener(IPAddress.Any, port2);
             Task.Run(() => ListenForClients(_tcpServer2, 2, _cancellationTokenSource.Token), _cancellationTokenSource.Token);
-            Log($"Сервер для камеры 2 запущен. Ожидание данных на порту {port2}...");
+            _logger.Log($"Сервер для камеры 2 запущен. Ожидание данных на порту {port2}...");
         }
 
         /// <summary>
@@ -62,7 +64,7 @@ namespace HikrobotScanner.Services
                 while (!token.IsCancellationRequested)
                 {
                     var client = await server.AcceptTcpClientAsync(token);
-                    Log($"Камера {cameraNumber} подключилась для отправки данных.");
+                    _logger.Log($"Камера {cameraNumber} подключилась для отправки данных.");
                     // Не ждем завершения HandleClientTask, чтобы цикл мог принять следующего клиента
                     _ = HandleClientTask(client, cameraNumber, token);
                 }
@@ -73,13 +75,13 @@ namespace HikrobotScanner.Services
             {
                 if (!token.IsCancellationRequested)
                 {
-                    Log($"Критическая ошибка сервера (Камера {cameraNumber}): {ex.Message}");
+                    _logger.Log($"Критическая ошибка сервера (Камера {cameraNumber}): {ex.Message}");
                 }
             }
             finally
             {
                 server?.Stop();
-                Log($"Сервер для камеры {cameraNumber} остановлен.");
+                _logger.Log($"Сервер для камеры {cameraNumber} остановлен.");
             }
         }
 
@@ -98,29 +100,24 @@ namespace HikrobotScanner.Services
                     {
                         var receivedData = Encoding.UTF8.GetString(buffer, 0, bytesRead).Trim();
                         // Вызываем callback, который передаст данные в MainViewModel
-                        _dataReceivedCallback?.Invoke(cameraNumber, receivedData);
+                        DataReceivedCallback?.Invoke(cameraNumber, receivedData);
                     }
                 }
             }
             catch (OperationCanceledException) { /* Игнорируем */ }
             catch (IOException ex) when (ex.InnerException is SocketException)
             {
-                Log($"Соединение (Камера {cameraNumber}) было принудительно разорвано.");
+                _logger.Log($"Соединение (Камера {cameraNumber}) было принудительно разорвано.");
             }
             catch (Exception ex)
             {
-                Log($"Ошибка при чтении данных (Камера {cameraNumber}): {ex.Message}");
+                _logger.Log($"Ошибка при чтении данных (Камера {cameraNumber}): {ex.Message}");
             }
             finally
             {
                 client.Close();
-                Log($"Камера {cameraNumber} отключилась.");
+                _logger.Log($"Камера {cameraNumber} отключилась.");
             }
-        }
-
-        private void Log(string message)
-        {
-            _logCallback?.Invoke(message);
         }
     }
 }
