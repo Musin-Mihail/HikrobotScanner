@@ -24,8 +24,6 @@ namespace HikrobotScanner.ViewModels
 
         #region Свойства состояния (State)
 
-        // [ObservableProperty] автоматически создает public свойство "Settings"
-        // с вызовом OnPropertyChanged
         [ObservableProperty]
         private Settings _settings;
 
@@ -44,17 +42,14 @@ namespace HikrobotScanner.ViewModels
         [ObservableProperty]
         private int _barcodeQuantity = 10;
 
-        // Для этого свойства нам нужна кастомная логика
         private long _barcodeCounter;
         public long BarcodeCounter
         {
             get => _barcodeCounter;
             set
             {
-                // Используем SetProperty из ObservableObject
                 if (SetProperty(ref _barcodeCounter, value))
                 {
-                    // Вызываем OnPropertyChanged для зависимого свойства
                     OnPropertyChanged(nameof(BarcodeCounterDisplay));
                 }
             }
@@ -63,19 +58,15 @@ namespace HikrobotScanner.ViewModels
         public string BarcodeCounterDisplay => _barcodeCounter.ToString("D7");
 
         [ObservableProperty]
-        // [NotifyCanExecuteChangedFor] автоматически вызывает .NotifyCanExecuteChanged()
-        // для указанных команд при изменении этого свойства.
         [NotifyCanExecuteChangedFor(nameof(StartServerCommand))]
         [NotifyCanExecuteChangedFor(nameof(StopServerCommand))]
         private bool _isServerRunning;
 
         public bool IsServerStopped => !IsServerRunning;
 
-        // Буферы для данных с камер
         private string _camera1DataBuffer = null;
         private string _camera2DataBuffer = null;
 
-        // Список полученных кодов
         private readonly List<string> _receivedCodes = new List<string>();
 
         #endregion
@@ -90,7 +81,6 @@ namespace HikrobotScanner.ViewModels
             IAppLogger logger,
             IDispatcherService dispatcher)
         {
-            // Сохраняем все внедренные сервисы
             _cameraService = cameraService;
             _serverService = serverService;
             _barcodeService = barcodeService;
@@ -99,19 +89,15 @@ namespace HikrobotScanner.ViewModels
             _logger = logger;
             _dispatcher = dispatcher;
 
-            // Настраиваем колбэки и подписки
             _serverService.DataReceivedCallback = OnDataReceivedFromService;
             _logger.LogUpdated += (logText) => _dispatcher.InvokeOnUIThread(() => LogText = logText);
 
-            // Загрузка состояния
             LoadApplicationState();
         }
         #endregion
 
         #region Команды (Commands)
 
-        // [RelayCommand] атрибут автоматически создает IRelayCommand
-        // с именем "StartServerCommand"
         [RelayCommand(CanExecute = nameof(CanStartServer))]
         private void StartServer()
         {
@@ -163,7 +149,6 @@ namespace HikrobotScanner.ViewModels
             _logger.Log($"Генерация {BarcodeQuantity} штрих-кодов...");
             try
             {
-                // Теперь мы отлавливаем исключение, которое может прийти из BarcodeService
                 var (success, nextCounter) = _barcodeService.GenerateAndPrintBarcodes(BarcodeCounter, BarcodeQuantity);
 
                 if (success)
@@ -174,7 +159,6 @@ namespace HikrobotScanner.ViewModels
             }
             catch (Exception ex)
             {
-                // ViewModel отвечает за отображение ошибки пользователю
                 _logger.Log($"Критическая ошибка печати: {ex.Message}");
                 ShowError($"Не удалось выполнить печать. Убедитесь, что принтер подключен и готов.\n\nОшибка: {ex.Message}", "Ошибка печати");
             }
@@ -189,19 +173,18 @@ namespace HikrobotScanner.ViewModels
         /// </summary>
         private void OnDataReceivedFromService(int cameraNumber, string data)
         {
-            // Используем IDispatcherService для безопасного обновления UI
             _dispatcher.InvokeOnUIThread(() =>
             {
                 if (cameraNumber == 1)
                 {
                     _camera1DataBuffer = data;
-                    Camera1Data = data; // Обновляем свойство (автоматически вызовет OnPropertyChanged)
+                    Camera1Data = data;
                     _logger.Log("Получены данные с камеры 1.");
                 }
-                else // cameraNumber == 2
+                else
                 {
                     _camera2DataBuffer = data;
-                    Camera2Data = data; // Обновляем свойство
+                    Camera2Data = data;
                     _logger.Log("Получены данные с камеры 2.");
                 }
 
@@ -287,11 +270,9 @@ namespace HikrobotScanner.ViewModels
 
         /// <summary>
         /// Отображение окна с ошибкой.
-        /// Этот метод должен быть в UI-слое (ViewModel), а не в сервисах.
         /// </summary>
         private void ShowError(string message, string title)
         {
-            // Мы должны быть в UI-потоке, чтобы показать MessageBox
             _dispatcher.InvokeOnUIThread(() =>
             {
                 MessageBox.Show(Application.Current.MainWindow,

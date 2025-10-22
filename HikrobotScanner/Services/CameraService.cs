@@ -28,7 +28,7 @@ namespace HikrobotScanner.Services
                 return;
             }
 
-            Cleanup(); // На всякий случай
+            Cleanup();
 
             MyCamera.MV_CC_DEVICE_INFO_LIST stDevList = new MyCamera.MV_CC_DEVICE_INFO_LIST();
             int nRet = MyCamera.MV_CC_EnumDevices_NET(MyCamera.MV_GIGE_DEVICE | MyCamera.MV_USB_DEVICE, ref stDevList);
@@ -136,7 +136,6 @@ namespace HikrobotScanner.Services
 
         private string GetCameraName(MyCamera.MV_CC_DEVICE_INFO stDevInfo, int index)
         {
-            // ... (код без изменений) ...
             string cameraName = "Безымянная камера";
             try
             {

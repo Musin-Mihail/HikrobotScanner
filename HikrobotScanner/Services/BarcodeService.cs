@@ -23,7 +23,6 @@ namespace HikrobotScanner.Services
 
         private readonly IAppLogger _logger;
 
-        // Сервис теперь зависит от абстракций (IAppLogger), а не от колбэков
         public BarcodeService(IAppLogger logger)
         {
             _logger = logger;
@@ -44,7 +43,7 @@ namespace HikrobotScanner.Services
             {
                 _logger.Log($"Ошибка загрузки счетчика: {ex.Message}");
             }
-            return 1; // Возвращаем 1 по умолчанию
+            return 1;
         }
 
         public void SaveCounter(long counter)
@@ -77,8 +76,6 @@ namespace HikrobotScanner.Services
 
             _logger.Log($"Сгенерировано {barcodesToPrint.Count} кодов. Следующий код начнется с номера {currentCounter}.");
 
-            // Метод PrintBarcodes теперь может выбросить исключение,
-            // MainViewModel будет отвечать за его обработку (try-catch)
             bool printSuccess = PrintBarcodes(barcodesToPrint);
 
             return (printSuccess, currentCounter);
@@ -127,7 +124,6 @@ namespace HikrobotScanner.Services
             catch (Exception ex)
             {
                 _logger.Log($"Ошибка печати: {ex.Message}");
-                // Вместо вызова ShowError, мы "пробрасываем" исключение наверх
                 throw new InvalidOperationException($"Не удалось отправить документ на печать. Ошибка: {ex.Message}", ex);
             }
         }

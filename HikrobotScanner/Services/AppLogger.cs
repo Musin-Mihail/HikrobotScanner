@@ -22,7 +22,6 @@ namespace HikrobotScanner.Services
                 _logBuilder.AppendLine(formattedMessage);
             }
 
-            // Уведомляем подписчиков (MainViewModel) об обновлении
             LogUpdated?.Invoke(GetLogText());
         }
 

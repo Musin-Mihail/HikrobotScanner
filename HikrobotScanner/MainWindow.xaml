@@ -8,14 +8,8 @@
         WindowStartupLocation="CenterScreen"
         Closing="Window_Closing">
 
-    <!-- 
-    Блок <Window.DataContext> удален. 
-    DataContext теперь устанавливается в App.xaml.cs при запуске.
-    -->
-
     <Grid Margin="15">
         <Grid.RowDefinitions>
-            <!-- ... (разметка XAML остается без изменений) ... -->
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
@@ -80,7 +74,6 @@
 
         <GroupBox Header="Управление и Результат" Grid.Row="1" Grid.Column="0" Padding="10">
             <StackPanel>
-                <!-- Привязки Command остались прежними, но теперь они работают с IRelayCommand из CommunityToolkit -->
                 <Button Content="Старт сервера" Command="{Binding StartServerCommand}" Margin="5" Padding="10,5" />
                 <Button Content="Стоп сервера" Command="{Binding StopServerCommand}" Margin="5" Padding="10,5" />
                 <Button Content="Очистить базу данных" Command="{Binding ClearDatabaseCommand}" Margin="5" Padding="10,5" />

@@ -37,18 +37,6 @@ namespace HikrobotScanner.Properties {
         
         [global::System.Configuration.UserScopedSettingAttribute()]
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
-        [global::System.Configuration.DefaultSettingValueAttribute("2001")]
-        public string TriggerPort {
-            get {
-                return ((string)(this["TriggerPort"]));
-            }
-            set {
-                this["TriggerPort"] = value;
-            }
-        }
-        
-        [global::System.Configuration.UserScopedSettingAttribute()]
-        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
         [global::System.Configuration.DefaultSettingValueAttribute("5000")]
         public string ListenPort {
             get {
@@ -92,18 +80,6 @@ namespace HikrobotScanner.Properties {
             }
             set {
                 this["CameraIp2"] = value;
-            }
-        }
-        
-        [global::System.Configuration.UserScopedSettingAttribute()]
-        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
-        [global::System.Configuration.DefaultSettingValueAttribute("2001")]
-        public string TriggerPort2 {
-            get {
-                return ((string)(this["TriggerPort2"]));
-            }
-            set {
-                this["TriggerPort2"] = value;
             }
         }
         

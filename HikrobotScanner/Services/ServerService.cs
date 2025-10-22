@@ -13,7 +13,6 @@ namespace HikrobotScanner.Services
     {
         private readonly IAppLogger _logger;
 
-        // Колбэк теперь устанавливается извне (из MainViewModel)
         public Action<int, string> DataReceivedCallback { get; set; }
 
         private TcpListener _tcpServer1;
@@ -32,12 +31,10 @@ namespace HikrobotScanner.Services
         {
             _cancellationTokenSource = new CancellationTokenSource();
 
-            // Listener for Camera 1
             _tcpServer1 = new TcpListener(IPAddress.Any, port1);
             Task.Run(() => ListenForClients(_tcpServer1, 1, _cancellationTokenSource.Token), _cancellationTokenSource.Token);
             _logger.Log($"Сервер для камеры 1 запущен. Ожидание данных на порту {port1}...");
 
-            // Listener for Camera 2
             _tcpServer2 = new TcpListener(IPAddress.Any, port2);
             Task.Run(() => ListenForClients(_tcpServer2, 2, _cancellationTokenSource.Token), _cancellationTokenSource.Token);
             _logger.Log($"Сервер для камеры 2 запущен. Ожидание данных на порту {port2}...");
@@ -65,12 +62,11 @@ namespace HikrobotScanner.Services
                 {
                     var client = await server.AcceptTcpClientAsync(token);
                     _logger.Log($"Камера {cameraNumber} подключилась для отправки данных.");
-                    // Не ждем завершения HandleClientTask, чтобы цикл мог принять следующего клиента
                     _ = HandleClientTask(client, cameraNumber, token);
                 }
             }
-            catch (OperationCanceledException) { /* Ожидаемое исключение */ }
-            catch (SocketException ex) when (ex.SocketErrorCode == SocketError.Interrupted) { /* Ожидаемое исключение */ }
+            catch (OperationCanceledException) { }
+            catch (SocketException ex) when (ex.SocketErrorCode == SocketError.Interrupted) { }
             catch (Exception ex)
             {
                 if (!token.IsCancellationRequested)
@@ -99,12 +95,11 @@ namespace HikrobotScanner.Services
                     while (!token.IsCancellationRequested && (bytesRead = await stream.ReadAsync(buffer, 0, buffer.Length, token)) != 0)
                     {
                         var receivedData = Encoding.UTF8.GetString(buffer, 0, bytesRead).Trim();
-                        // Вызываем callback, который передаст данные в MainViewModel
                         DataReceivedCallback?.Invoke(cameraNumber, receivedData);
                     }
                 }
             }
-            catch (OperationCanceledException) { /* Игнорируем */ }
+            catch (OperationCanceledException) { }
             catch (IOException ex) when (ex.InnerException is SocketException)
             {
                 _logger.Log($"Соединение (Камера {cameraNumber}) было принудительно разорвано.");

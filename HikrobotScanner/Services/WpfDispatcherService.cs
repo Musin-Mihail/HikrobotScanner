@@ -10,12 +10,11 @@ namespace HikrobotScanner.Services
     {
         public void InvokeOnUIThread(Action action)
         {
-            // Если мы уже в UI-потоке, просто выполняем
             if (Application.Current.Dispatcher.CheckAccess())
             {
                 action();
             }
-            else // Иначе, используем Dispatcher
+            else
             {
                 Application.Current.Dispatcher.Invoke(action);
             }

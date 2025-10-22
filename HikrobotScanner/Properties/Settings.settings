@@ -5,9 +5,6 @@
     <Setting Name="CameraIp" Type="System.String" Scope="User">
       <Value Profile="(Default)">192.168.1.20</Value>
     </Setting>
-    <Setting Name="TriggerPort" Type="System.String" Scope="User">
-      <Value Profile="(Default)">2001</Value>
-    </Setting>
     <Setting Name="ListenPort" Type="System.String" Scope="User">
       <Value Profile="(Default)">5000</Value>
     </Setting>
@@ -19,9 +16,6 @@
     </Setting>
     <Setting Name="CameraIp2" Type="System.String" Scope="User">
       <Value Profile="(Default)">192.168.1.21</Value>
-    </Setting>
-    <Setting Name="TriggerPort2" Type="System.String" Scope="User">
-      <Value Profile="(Default)">2001</Value>
     </Setting>
     <Setting Name="ListenPort2" Type="System.String" Scope="User">
       <Value Profile="(Default)">5100</Value>
