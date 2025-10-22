@@ -34,6 +34,9 @@ namespace HikrobotScanner.ViewModels
         private string _statusText = "Сервер не запущен.";
 
         [ObservableProperty]
+        private bool _isErrorState;
+
+        [ObservableProperty]
         private string _camera1Data;
 
         [ObservableProperty]
@@ -119,6 +122,7 @@ namespace HikrobotScanner.ViewModels
 
             IsServerRunning = true;
             StatusText = $"Сервер слушает порты {port1} & {port2}";
+            ShowError("Линейный штрих-код не найден.", "Ошибка сканирования");
         }
         private bool CanStartServer() => IsServerStopped;
 
@@ -269,12 +273,31 @@ namespace HikrobotScanner.ViewModels
         #region Вспомогательные методы (Ошибки)
 
         /// <summary>
-        /// Отображение окна с ошибкой.
+        /// Отображение окна с ошибкой, со звуком и миганием.
         /// </summary>
         private void ShowError(string message, string title)
         {
             _dispatcher.InvokeOnUIThread(() =>
             {
+                Task.Run(() =>
+                {
+                    try
+                    {
+                        Console.Beep(1500, 500);
+                        Console.Beep(1500, 500);
+                        Console.Beep(1500, 500);
+                    }
+                    catch (Exception)
+                    {
+                        // Игнорируем ошибку, если Beep не поддерживается 
+                        // (например, в некоторых средах)
+                    }
+                });
+                IsErrorState = true;
+                Task.Delay(500).ContinueWith(_ =>
+                {
+                    _dispatcher.InvokeOnUIThread(() => IsErrorState = false);
+                });
                 MessageBox.Show(Application.Current.MainWindow,
                     message,
                     title,
