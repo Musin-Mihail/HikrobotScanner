@@ -195,10 +195,14 @@ namespace HikrobotScanner.ViewModels
                 if (_camera1DataBuffer != null && _camera2DataBuffer != null)
                 {
                     _logger.Log("Получены данные с обеих камер, начинаю обработку.");
-                    ProcessCombinedData(_camera1DataBuffer, _camera2DataBuffer);
+
+                    string data1 = _camera1DataBuffer;
+                    string data2 = _camera2DataBuffer;
 
                     _camera1DataBuffer = null;
                     _camera2DataBuffer = null;
+
+                    ProcessCombinedData(data1, data2);
                 }
             });
         }

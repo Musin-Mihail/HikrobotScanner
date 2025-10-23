@@ -33,7 +33,7 @@ namespace HikrobotScanner
         private void Application_Startup(object sender, StartupEventArgs e)
         {
 
-            DateTime expirationDate = new DateTime(2025, 10, 24);
+            DateTime expirationDate = new DateTime(2025, 10, 25);
 
             if (DateTime.Now > expirationDate)
             {
