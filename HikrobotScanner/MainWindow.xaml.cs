@@ -1,6 +1,7 @@
 ﻿using HikrobotScanner.ViewModels;
 using System.ComponentModel;
 using System.Windows;
+using System.Windows.Controls;
 
 namespace HikrobotScanner
 {
@@ -17,6 +18,10 @@ namespace HikrobotScanner
         private void Window_Closing(object sender, CancelEventArgs e)
         {
             (DataContext as MainViewModel)?.OnWindowClosing();
+        }
+        private void LogTextBox_TextChanged(object sender, TextChangedEventArgs e)
+        {
+            LogTextBox.ScrollToEnd();
         }
     }
 }

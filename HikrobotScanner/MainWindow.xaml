@@ -90,7 +90,13 @@
         </GroupBox>
 
         <GroupBox Header="Лог событий" Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="2" Padding="10">
-            <TextBox Text="{Binding LogText, Mode=OneWay}" IsReadOnly="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" Background="#f0f0f0" />
+            <TextBox x:Name="LogTextBox" 
+                     Text="{Binding LogText, Mode=OneWay}" 
+                     IsReadOnly="True" 
+                     TextWrapping="Wrap" 
+                     VerticalScrollBarVisibility="Auto" 
+                     Background="#f0f0f0" 
+                     TextChanged="LogTextBox_TextChanged" />
         </GroupBox>
 
         <StatusBar Grid.Row="3" Grid.Column="0" Grid.ColumnSpan="2">
