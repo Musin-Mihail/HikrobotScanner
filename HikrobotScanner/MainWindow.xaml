@@ -105,14 +105,6 @@
             <StatusBarItem>
                 <TextBlock Text="{Binding StatusText, Mode=OneWay}" />
             </StatusBarItem>
-
-            <StatusBarItem HorizontalAlignment="Right">
-                <TextBlock Text="{Binding TrialCountdownText, Mode=OneWay}" 
-                           Foreground="Red" 
-                           FontWeight="Bold" 
-                           Margin="0,0,10,0"/>
-            </StatusBarItem>
-
         </StatusBar>
 
         <Border Grid.Row="0" Grid.Column="0" 

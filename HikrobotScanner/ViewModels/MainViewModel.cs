@@ -72,12 +72,6 @@ namespace HikrobotScanner.ViewModels
 
         private readonly List<string> _receivedCodes = new List<string>();
 
-        [ObservableProperty]
-        private string _trialCountdownText;
-
-        private Timer _trialTimer;
-        private DateTime _shutdownTime;
-
         #endregion
 
         #region Конструктор (Внедрение зависимостей)
@@ -103,7 +97,6 @@ namespace HikrobotScanner.ViewModels
 
             LoadApplicationState();
 
-            StartTrialTimer();
         }
         #endregion
 
@@ -217,8 +210,8 @@ namespace HikrobotScanner.ViewModels
         /// </summary>
         private void ProcessCombinedData(string data1, string data2)
         {
-            var combinedData = $"{data1.Trim()}|{data2.Trim()}";
-            var allParts = combinedData.Split(new[] { "|" }, StringSplitOptions.RemoveEmptyEntries);
+            var combinedData = $"{data1.Trim()}#{data2.Trim()}";
+            var allParts = combinedData.Split(new[] { "#" }, StringSplitOptions.RemoveEmptyEntries);
 
             var linearCodes = new List<string>();
             var qrCodes = new List<string>();
@@ -251,7 +244,7 @@ namespace HikrobotScanner.ViewModels
             }
 
             var finalLinearCode = uniqueLinearCodes.Single();
-            if (_receivedCodes.Any(c => c.StartsWith(finalLinearCode + "|")))
+            if (_receivedCodes.Any(c => c.StartsWith(finalLinearCode + "#")))
             {
                 _logger.Log($"Штрих-код {finalLinearCode} уже сохранен.");
                 return;
@@ -269,7 +262,7 @@ namespace HikrobotScanner.ViewModels
 
             var codesToSave = new List<string> { finalLinearCode };
             codesToSave.AddRange(uniqueQrCodes);
-            var dataToSave = string.Join("|", codesToSave);
+            var dataToSave = string.Join("#", codesToSave);
 
             _receivedCodes.Add(dataToSave);
             _logger.Log($"Код успешно обработан и сохранен: {finalLinearCode}");
@@ -315,51 +308,6 @@ namespace HikrobotScanner.ViewModels
 
         #endregion
 
-        #region Логика Демо-режима (НОВЫЙ РЕГИОН)
-
-        private void StartTrialTimer()
-        {
-            _shutdownTime = DateTime.Now.AddMinutes(10);
-
-            _trialTimer = new Timer(
-                OnTimerTick,
-                null,
-                TimeSpan.Zero,
-                TimeSpan.FromSeconds(1)
-            );
-        }
-
-        private void OnTimerTick(object state)
-        {
-            TimeSpan remaining = _shutdownTime - DateTime.Now;
-
-            if (remaining <= TimeSpan.Zero)
-            {
-                _trialTimer?.Dispose();
-                _trialTimer = null;
-
-                _dispatcher.InvokeOnUIThread(() =>
-                {
-                    MessageBox.Show(
-                        "Время работы демонстрационной версии истекло.",
-                        "Демо-режим",
-                        MessageBoxButton.OK,
-                        MessageBoxImage.Warning);
-                    Application.Current.Shutdown();
-                });
-            }
-            else
-            {
-                string newText = $"До отключения: {remaining:m\\:ss}";
-                _dispatcher.InvokeOnUIThread(() =>
-                {
-                    TrialCountdownText = newText;
-                });
-            }
-        }
-
-        #endregion
-
         #region Управление жизненным циклом
 
         private void LoadApplicationState()
@@ -388,7 +336,6 @@ namespace HikrobotScanner.ViewModels
         /// </summary>
         public void OnWindowClosing()
         {
-            _trialTimer?.Dispose();
             _logger.Log("Приложение закрывается...");
             if (IsServerRunning)
             {

@@ -32,6 +32,21 @@ namespace HikrobotScanner
 
         private void Application_Startup(object sender, StartupEventArgs e)
         {
+
+            DateTime expirationDate = new DateTime(2025, 10, 24);
+
+            if (DateTime.Now > expirationDate)
+            {
+                MessageBox.Show(
+                    "Срок действия этой версии программы истек. Пожалуйста, свяжитесь с разработчиком.",
+                    "Срок действия истек",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Error);
+
+                Application.Current.Shutdown();
+                return;
+            }
+
             var mainWindow = new MainWindow
             {
                 DataContext = ServiceProvider.GetRequiredService<MainViewModel>()
