@@ -182,14 +182,14 @@ namespace HikrobotScanner.ViewModels
                 if (cameraNumber == 1)
                 {
                     _camera1DataBuffer = data;
-                    Camera1Data = data;
                     _logger.Log("Получены данные с камеры 1.");
+                    _logger.Log(data);
                 }
                 else
                 {
                     _camera2DataBuffer = data;
-                    Camera2Data = data;
                     _logger.Log("Получены данные с камеры 2.");
+                    _logger.Log(data);
                 }
 
                 if (_camera1DataBuffer != null && _camera2DataBuffer != null)
@@ -199,8 +199,6 @@ namespace HikrobotScanner.ViewModels
 
                     _camera1DataBuffer = null;
                     _camera2DataBuffer = null;
-                    Camera1Data = "";
-                    Camera2Data = "";
                 }
             });
         }
@@ -265,6 +263,7 @@ namespace HikrobotScanner.ViewModels
             var dataToSave = string.Join("#", codesToSave);
 
             _receivedCodes.Add(dataToSave);
+            _dataService.SaveSingleCode(finalLinearCode, dataToSave);
             _logger.Log($"Код успешно обработан и сохранен: {finalLinearCode}");
         }
 
@@ -323,7 +322,6 @@ namespace HikrobotScanner.ViewModels
             _serverService.Stop();
             _cameraService.Cleanup();
 
-            _dataService.SaveReceivedCodesToFile(_receivedCodes);
             _receivedCodes.Clear();
 
             IsServerRunning = false;

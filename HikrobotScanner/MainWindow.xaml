@@ -12,7 +12,6 @@
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
-            <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
             <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
@@ -80,13 +79,6 @@
             </StackPanel>
         </GroupBox>
 
-        <GroupBox Header="Данные с первой камеры" Grid.Row="2" Grid.Column="0" Padding="10">
-            <TextBox Text="{Binding Camera1Data, Mode=OneWay}" IsReadOnly="True" MinHeight="80" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" Background="#f0f0f0" />
-        </GroupBox>
-        <GroupBox Header="Данные со вторая камеры" Grid.Row="2" Grid.Column="1" Padding="10">
-            <TextBox Text="{Binding Camera2Data, Mode=OneWay}" IsReadOnly="True" MinHeight="80" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" Background="#f0f0f0" />
-        </GroupBox>
-
         <GroupBox Header="Генерация кодов" Grid.Row="1" Grid.Column="1" Padding="10">
             <StackPanel>
                 <Label Content="Следующий номер кода:" />
@@ -97,18 +89,18 @@
             </StackPanel>
         </GroupBox>
 
-        <GroupBox Header="Лог событий" Grid.Row="3" Grid.Column="0" Grid.ColumnSpan="2" Padding="10">
+        <GroupBox Header="Лог событий" Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="2" Padding="10">
             <TextBox Text="{Binding LogText, Mode=OneWay}" IsReadOnly="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" Background="#f0f0f0" />
         </GroupBox>
 
-        <StatusBar Grid.Row="4" Grid.Column="0" Grid.ColumnSpan="2">
+        <StatusBar Grid.Row="3" Grid.Column="0" Grid.ColumnSpan="2">
             <StatusBarItem>
                 <TextBlock Text="{Binding StatusText, Mode=OneWay}" />
             </StatusBarItem>
         </StatusBar>
 
         <Border Grid.Row="0" Grid.Column="0" 
-                Grid.RowSpan="5" Grid.ColumnSpan="2" Background="Transparent"
+                Grid.RowSpan="4" Grid.ColumnSpan="2" Background="Transparent"
                 IsHitTestVisible="False" x:Name="ErrorFlashOverlay">
 
             <Border.Style>

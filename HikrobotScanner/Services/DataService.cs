@@ -9,10 +9,33 @@ namespace HikrobotScanner.Services
     public class DataService : IDataService
     {
         private readonly IAppLogger _logger;
+        private const string SingleSaveDirectory = "codes";
 
         public DataService(IAppLogger logger)
         {
             _logger = logger;
+        }
+
+        /// <summary>
+        /// Сохраняет данные одного обработанного кода в отдельный файл в папку 'codes'.
+        /// </summary>
+        public void SaveSingleCode(string linearCode, string combinedData)
+        {
+            try
+            {
+                var directory = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, SingleSaveDirectory);
+                Directory.CreateDirectory(directory);
+
+                var fileName = $"{DateTime.Now:yyyyMMdd_HHmmss}_{linearCode}.txt";
+                var filePath = Path.Combine(directory, fileName);
+
+                File.WriteAllText(filePath, combinedData);
+                _logger.Log($"Код {linearCode} сохранен в файл: {filePath}");
+            }
+            catch (Exception ex)
+            {
+                _logger.Log($"Ошибка сохранения файла для кода {linearCode}: {ex.Message}");
+            }
         }
 
         public void SaveReceivedCodesToFile(List<string> receivedCodes)
