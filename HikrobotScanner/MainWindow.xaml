@@ -4,7 +4,7 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         mc:Ignorable="d"
-        Title="Hikrobot ID5000 Controller (MVVM Refactored)" Height="850" Width="700"
+        Title="Hikrobot ID5000 Controller" Height="850" Width="700"
         WindowStartupLocation="CenterScreen"
         Closing="Window_Closing">
 
